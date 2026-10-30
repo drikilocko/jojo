@@ -1,0 +1,10 @@
+﻿{
+  "expo": {
+    "name": "Jojo Access",
+    "slug": "jojo-access",
+    "version": "1.0.0",
+    "web": { "bundler": "metro", "output": "single" },
+    "platforms": ["web"],
+    "scheme": "jojo"
+  }
+}
