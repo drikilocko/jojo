@@ -26,13 +26,22 @@ export default function App() {
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       <View style={s.root}>
         {screen === "gate" && (
-          <GateScreen onUnlock={() => setScreen("video")} onBuy={() => setScreen("payment")} />
+          <GateScreen
+            onUnlock={() => setScreen("video")}
+            onBuy={() => setScreen("payment")}
+          />
         )}
         {screen === "payment" && (
-          <PaymentScreen onBack={() => setScreen("gate")} onSuccess={() => setScreen("video")} />
+          <PaymentScreen
+            onBack={() => setScreen("gate")}
+            onSuccess={() => setScreen("video")}
+          />
         )}
         {screen === "video" && (
-          <VideoScreen onLock={lock} onAddTime={() => setScreen("payment")} />
+          <VideoScreen
+            onLock={lock}
+            onRenew={() => setScreen("payment")}
+          />
         )}
       </View>
     </SafeAreaView>
