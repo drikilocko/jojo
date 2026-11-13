@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
-import { LocalizedText as Text } from '../context/LanguageContext';
+import { LocalizedText as Text, useLanguage } from '../context/LanguageContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 
 export const FlashSaleTimer: React.FC = () => {
-    const { applyPromoCode, appliedPromo } = useShop();
+    const { applyPromoCode, appliedPromo, formatPrice } = useShop();
+    const { language } = useLanguage();
     const { width } = useWindowDimensions();
     const isMobile = width < 480;
     const [timeLeft, setTimeLeft] = useState({ hours: 4, minutes: 32, seconds: 15 });
@@ -34,16 +35,15 @@ export const FlashSaleTimer: React.FC = () => {
             <View style={styles.leftRow}>
                 <Ionicons name="flame" size={14} color="#ffffff" />
                 <Text style={[styles.saleText, isMobile && styles.saleTextMobile]} numberOfLines={1}>
-                    <Text style={styles.boldText}>ZONE DE PAPY FLASH SALE:</Text>
-                    {isMobile ? '' : ' 20% OFF ALL ITEMS'}
+                    <Text style={styles.boldText}>
+                        {language === 'fr' ? 'VENTE FLASH ZONE DE PAPY :' : 'ZONE DE PAPY FLASH SALE:'}
+                    </Text>
+                    {` ${formatPrice(20)} ${language === 'fr' ? 'DE RÉDUCTION' : 'OFF'}`}
                 </Text>
-                {isMobile && (
-                    <Text style={[styles.saleText, { marginLeft: 0 }]}> 20% OFF</Text>
-                )}
             </View>
 
             <View style={styles.rightRow}>
-                <Text style={styles.endsLabel}>ENDS IN:</Text>
+                <Text style={styles.endsLabel}>{language === 'fr' ? 'FIN DANS :' : 'ENDS IN:'}</Text>
                 <View style={styles.timeBox}>
                     <Text style={styles.timeDigit}>{formatDigit(timeLeft.hours)}</Text>
                 </View>
@@ -61,7 +61,9 @@ export const FlashSaleTimer: React.FC = () => {
                     onPress={() => applyPromoCode('PAPY20')}
                 >
                     <Text style={styles.claimBtnText}>
-                        {appliedPromo === 'PAPY20' ? 'CLAIMED ✓' : 'CLAIM 20%'}
+                        {appliedPromo === 'PAPY20'
+                            ? (language === 'fr' ? 'CODE UTILISÉ ✓' : 'CODE APPLIED ✓')
+                            : (language === 'fr' ? 'UTILISER PAPY20' : 'USE PAPY20')}
                     </Text>
                 </TouchableOpacity>
             </View>

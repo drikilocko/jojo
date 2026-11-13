@@ -1,6 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, useWindowDimensions, ImageBackground, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { LocalizedText as Text } from '../context/LanguageContext';
 import { useShop } from '../context/ShopContext';
+import { VIDEO_BG_IMAGE } from '../data/media';
 
 type FooterProps = {
     horizontalBleed?: number;
@@ -44,7 +47,16 @@ export const Footer: React.FC<FooterProps> = ({ horizontalBleed = 0 }) => {
     );
 
     return (
-        <View style={[styles.footer, horizontalBleed > 0 && { marginHorizontal: -horizontalBleed }]}>
+        <ImageBackground
+            source={VIDEO_BG_IMAGE}
+            blurRadius={Platform.OS === 'web' ? 14 : 18}
+            style={[styles.footer, horizontalBleed > 0 && { marginHorizontal: -horizontalBleed }]}
+            resizeMode="cover"
+        >
+            <LinearGradient
+                colors={['rgba(5, 8, 16, 0.90)', 'rgba(3, 5, 12, 0.96)']}
+                style={StyleSheet.absoluteFill}
+            />
             <View style={styles.content}>
                 <View style={[styles.serviceRow, isMobile && styles.serviceRowMobile]}>
                     {serviceHighlights.map((label) => (
@@ -89,7 +101,7 @@ export const Footer: React.FC<FooterProps> = ({ horizontalBleed = 0 }) => {
                     <Text style={styles.bottomNote}>La technologie, en toute simplicité.</Text>
                 </View>
             </View>
-        </View>
+        </ImageBackground>
     );
 };
 

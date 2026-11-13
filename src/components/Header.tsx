@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Modal, FlatList, useWindowDimensions, Image } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Modal, FlatList, useWindowDimensions, Image, ImageBackground, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { LocalizedText as Text, LocalizedTextInput as TextInput, useLanguage } from '../context/LanguageContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 import { CURRENCIES } from '../data/mockData';
 import { AuthModal } from './AuthModal';
+import { VIDEO_BG_IMAGE } from '../data/media';
 
 export const Header: React.FC<{ overlay?: boolean }> = ({ overlay = false }) => {
     const { language, setLanguage } = useLanguage();
@@ -23,6 +25,7 @@ export const Header: React.FC<{ overlay?: boolean }> = ({ overlay = false }) => 
         clearBackendError,
         showAuthModal,
         setShowAuthModal,
+        lockSite,
     } = useShop();
 
     const [showCurrencyModal, setShowCurrencyModal] = useState(false);
@@ -31,7 +34,20 @@ export const Header: React.FC<{ overlay?: boolean }> = ({ overlay = false }) => 
     const isSmall = width < 380;
 
     return (
-        <View style={[styles.headerContainer, overlay && styles.overlayHeader]}>
+        <ImageBackground
+            source={VIDEO_BG_IMAGE}
+            blurRadius={Platform.OS === 'web' ? 14 : 18}
+            style={[styles.headerContainer, overlay && styles.overlayHeader]}
+            resizeMode="cover"
+        >
+            <LinearGradient
+                colors={
+                    overlay
+                        ? ['rgba(5, 7, 15, 0.65)', 'rgba(7, 9, 15, 0.82)']
+                        : ['rgba(255, 255, 255, 0.88)', 'rgba(248, 250, 252, 0.94)']
+                }
+                style={StyleSheet.absoluteFill}
+            />
             {overlay && (
                 <BlurView
                     intensity={55}
@@ -84,8 +100,12 @@ export const Header: React.FC<{ overlay?: boolean }> = ({ overlay = false }) => 
                             <TouchableOpacity
                                 key={option}
                                 accessibilityRole="button"
-                                accessibilityLabel={option === 'en' ? 'English' : 'Français'}
-                                onPress={() => setLanguage(option)}
+                                onPress={() => {
+                                    setLanguage(option);
+                                    if (option === 'fr' && currency.code === 'USD') {
+                                        setCurrencyCode('FCFA');
+                                    }
+                                }}
                                 style={[
                                     styles.languageOption,
                                     overlay && styles.overlayLanguageOption,
@@ -172,6 +192,17 @@ export const Header: React.FC<{ overlay?: boolean }> = ({ overlay = false }) => 
                                 </View>
                             )}
                         </View>
+                    </TouchableOpacity>
+
+                    {/* Verrouillage portail d'accès */}
+                    <TouchableOpacity
+                        style={[styles.iconButton, overlay && styles.overlayIconButton]}
+                        onPress={lockSite}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Verrouiller le site"
+                    >
+                        <Feather name="lock" size={17} color={overlay ? '#ffffff' : '#111111'} />
                     </TouchableOpacity>
 
                     {user?.role === 'admin' && (
@@ -297,7 +328,7 @@ export const Header: React.FC<{ overlay?: boolean }> = ({ overlay = false }) => 
                 visible={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
             />
-        </View>
+        </ImageBackground>
     );
 };
 

@@ -20,15 +20,9 @@ import {
     Montserrat_900Black,
 } from '@expo-google-fonts/montserrat/900Black';
 import { ShopProvider, useShop } from './src/context/ShopContext';
-import { ShopScreen } from './src/screens/ShopScreen';
-import { ProductDetailScreen } from './src/screens/ProductDetailScreen';
-import { CartScreen } from './src/screens/CartScreen';
-import { CheckoutScreen } from './src/screens/CheckoutScreen';
-import { OrderSuccessScreen } from './src/screens/OrderSuccessScreen';
-import { WishlistScreen } from './src/screens/WishlistScreen';
-import { AdminScreen } from './src/screens/AdminScreen';
-import { AccountScreen } from './src/screens/AccountScreen';
-import { ExploreScreen } from './src/screens/ExploreScreen';
+import { GateScreen } from './src/screens/GateScreen';
+import { QuickPaymentScreen } from './src/screens/QuickPaymentScreen';
+import { VideoScreen } from './src/screens/VideoScreen';
 import { LanguageProvider } from './src/context/LanguageContext';
 
 const MainNavigator: React.FC = () => {
@@ -36,25 +30,13 @@ const MainNavigator: React.FC = () => {
 
     const renderScreen = () => {
         switch (activeScreen) {
-            case 'product-detail':
-                return <ProductDetailScreen />;
-            case 'cart':
-                return <CartScreen />;
-            case 'checkout':
-                return <CheckoutScreen />;
-            case 'order-success':
-                return <OrderSuccessScreen />;
-            case 'wishlist':
-                return <WishlistScreen />;
-            case 'admin':
-                return <AdminScreen />;
-            case 'account':
-                return <AccountScreen />;
-            case 'explore':
-                return <ExploreScreen />;
-            case 'shop':
+            case 'quick-payment':
+                return <QuickPaymentScreen />;
+            case 'video':
+                return <VideoScreen />;
+            case 'gate':
             default:
-                return <ShopScreen />;
+                return <GateScreen />;
         }
     };
 
@@ -94,7 +76,7 @@ export default function App() {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#07090f',
     },
     appWrapper: {
         flex: 1,

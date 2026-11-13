@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Product, CartItem, FilterState, CurrencyCode, Currency, Order, User } from '../types';
 import { PRODUCTS, CATEGORIES, CURRENCIES } from '../data/mockData';
 import { getErrorMessage, isExpiredJwtError, supabase } from '../lib/supabase';
+import { translateText, useLanguage } from './LanguageContext';
+import { ACCESS_CODE_STORAGE_KEY } from '../screens/GateScreen';
 
-type ScreenName = 'shop' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'wishlist' | 'admin' | 'account' | 'explore';
+type ScreenName = 'shop' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'wishlist' | 'admin' | 'account' | 'explore' | 'gate' | 'quick-payment' | 'video';
 
 interface ShopContextType {
     products: Product[];
@@ -54,6 +57,8 @@ interface ShopContextType {
     cartTotal: number; // in USD
     shippingCost: number;
     resetFilters: () => void;
+    lockSite: () => Promise<void>;
+    isSiteUnlocked: boolean;
 }
 
 const initialFilterState: FilterState = {
@@ -66,8 +71,10 @@ const initialFilterState: FilterState = {
 };
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
+const CURRENCY_STORAGE_KEY = '@zone-de-papy/currency';
 
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { language } = useLanguage();
     const [user, setUser] = useState<User | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [backendError, setBackendError] = useState<string | null>(null);
@@ -151,12 +158,61 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const [cart, setCart] = useState<CartItem[]>([]);
     const [wishlist, setWishlist] = useState<string[]>([]);
-    const [activeScreen, setActiveScreen] = useState<ScreenName>('shop');
+    const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
+    const [activeScreen, setActiveScreen] = useState<ScreenName>('gate');
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(PRODUCTS[0]);
     const [currency, setCurrency] = useState<Currency>(CURRENCIES[0]);
+    const currencyChangedDuringLoad = useRef(false);
     const [filterState, setFilterState] = useState<FilterState>(initialFilterState);
     const [appliedPromo, setAppliedPromo] = useState<string | null>('PAPY20');
     const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+
+    useEffect(() => {
+        AsyncStorage.getItem(ACCESS_CODE_STORAGE_KEY)
+            .then((unlocked) => {
+                if (unlocked === 'true') {
+                    setIsSiteUnlocked(true);
+                    setActiveScreen('video');
+                } else {
+                    setIsSiteUnlocked(false);
+                    setActiveScreen('gate');
+                }
+            })
+            .catch(() => {
+                setActiveScreen('gate');
+            });
+    }, []);
+
+    const lockSite = async () => {
+        await AsyncStorage.removeItem(ACCESS_CODE_STORAGE_KEY);
+        setIsSiteUnlocked(false);
+        setActiveScreen('gate');
+    };
+
+    useEffect(() => {
+        let mounted = true;
+        AsyncStorage.getItem(CURRENCY_STORAGE_KEY)
+            .then((savedCode) => {
+                if (!mounted || currencyChangedDuringLoad.current) return;
+                if (savedCode) {
+                    const savedCurrency = CURRENCIES.find((item) => item.code === savedCode);
+                    if (savedCurrency) {
+                        setCurrency(savedCurrency);
+                        return;
+                    }
+                }
+                // When in French mode, default currency to FCFA
+                if (language === 'fr') {
+                    setCurrency(CURRENCIES[0]);
+                }
+            })
+            .catch((error: unknown) => {
+                console.error('Unable to load saved currency preference.', error);
+            });
+        return () => {
+            mounted = false;
+        };
+    }, [language]);
 
     useEffect(() => {
         let mounted = true;
@@ -257,7 +313,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const setCurrencyCode = (code: CurrencyCode) => {
         const found = CURRENCIES.find((c) => c.code === code);
-        if (found) setCurrency(found);
+        if (!found) return;
+        currencyChangedDuringLoad.current = true;
+        setCurrency(found);
+        AsyncStorage.setItem(CURRENCY_STORAGE_KEY, code).catch((error: unknown) => {
+            console.error('Unable to save selected currency.', error);
+        });
     };
 
     const navigateTo = (screen: ScreenName) => {
@@ -361,9 +422,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const clean = code.trim().toUpperCase();
         if (clean === 'PAPY20' || clean === '20100' || clean === 'SALE20' || clean === 'WEARISM20') {
             setAppliedPromo(clean);
-            return { success: true, message: '$20 discount applied!' };
+            const message = language === 'fr'
+                ? `${formatPrice(20)} de réduction appliquée !`
+                : `${formatPrice(20)} discount applied!`;
+            return { success: true, message };
         }
-        return { success: false, message: 'Invalid coupon code. Try code: PAPY20' };
+        return {
+            success: false,
+            message: translateText('Invalid coupon code. Try code: PAPY20', language),
+        };
     };
 
     const removePromoCode = () => {
@@ -394,11 +461,19 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [cartSubtotal, discount, shippingCost]);
 
     const formatPrice = (amountInUSD: number) => {
-        const converted = amountInUSD * currency.rate;
+        const converted = Math.round(amountInUSD * currency.rate);
         if (currency.code === 'FCFA') {
-            return `${Math.round(converted).toLocaleString()} FCFA`;
+            const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+            const formatted = converted.toLocaleString(locale);
+            return `${formatted} FCFA`;
         }
-        return `${currency.symbol}${converted.toFixed(2)}`;
+        const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: currency.code,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(amountInUSD * currency.rate);
     };
 
     const resetFilters = () => {
@@ -553,6 +628,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 cartTotal,
                 shippingCost,
                 resetFilters,
+                lockSite,
+                isSiteUnlocked,
             }}
         >
             {children}

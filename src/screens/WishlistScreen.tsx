@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { LocalizedText as Text } from '../context/LanguageContext';
+import { LocalizedText as Text, useLanguage } from '../context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 import { Header } from '../components/Header';
@@ -8,6 +8,7 @@ import { ProductCard } from '../components/ProductCard';
 
 export const WishlistScreen: React.FC = () => {
     const { products, wishlist, navigateTo } = useShop();
+    const { language } = useLanguage();
 
     const favoriteProducts = products.filter((p) => wishlist.includes(p.id));
 
@@ -21,7 +22,9 @@ export const WishlistScreen: React.FC = () => {
                         <Feather name="arrow-left" size={16} color="#475569" />
                         <Text style={styles.backBtnText}>Continue Shopping</Text>
                     </TouchableOpacity>
-                    <Text style={styles.pageTitle}>Saved Wishlist ({favoriteProducts.length})</Text>
+                    <Text style={styles.pageTitle}>
+                        {language === 'fr' ? `Favoris enregistrés (${favoriteProducts.length})` : `Saved Wishlist (${favoriteProducts.length})`}
+                    </Text>
                 </View>
 
                 {favoriteProducts.length === 0 ? (

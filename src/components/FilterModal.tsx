@@ -12,7 +12,7 @@ interface FilterModalProps {
 const PRICE_LIMITS = [100, 300, 500, 1000, 2000];
 
 export const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose }) => {
-    const { products, filterState, setFilterState, resetFilters } = useShop();
+    const { products, filterState, setFilterState, resetFilters, formatPrice } = useShop();
     const productTypes = ['ALL', ...new Set(products.map((product) => product.productType).filter(Boolean) as string[])];
     const colors = ['ALL', ...new Set(products.flatMap((product) => product.colors.map((color) => color.name)))];
 
@@ -31,7 +31,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose }) =>
                     <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
                         {/* Max Price Cap */}
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Max Price (${filterState.maxPrice})</Text>
+                            <Text style={styles.sectionTitle}>Maximum price:</Text>
+                            <Text style={styles.sectionTitle}>{formatPrice(filterState.maxPrice)}</Text>
                             <View style={styles.priceRow}>
                                 {PRICE_LIMITS.map((price) => (
                                     <TouchableOpacity
@@ -50,7 +51,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({ visible, onClose }) =>
                                                 filterState.maxPrice === price && styles.chipTextActive,
                                             ]}
                                         >
-                                            ${price}
+                                            {formatPrice(price)}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}

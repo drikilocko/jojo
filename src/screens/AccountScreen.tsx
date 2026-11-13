@@ -7,7 +7,7 @@ import { Header } from '../components/Header';
 import { getErrorMessage } from '../lib/supabase';
 
 export const AccountScreen: React.FC = () => {
-    const { user, logout, orders, navigateTo, formatPrice, saveAddress } = useShop();
+    const { user, logout, orders, navigateTo, formatPrice, saveAddress, currency, setCurrencyCode } = useShop();
 
     const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'addresses' | 'settings'>('profile');
     const { language, setLanguage } = useLanguage();
@@ -268,7 +268,12 @@ export const AccountScreen: React.FC = () => {
                             <View style={styles.langToggle}>
                                 <TouchableOpacity
                                     style={[styles.langBtn, language === 'fr' && styles.langBtnActive]}
-                                    onPress={() => setLanguage('fr')}
+                                    onPress={() => {
+                                        setLanguage('fr');
+                                        if (currency.code === 'USD') {
+                                            setCurrencyCode('FCFA');
+                                        }
+                                    }}
                                 >
                                     <Text style={[styles.langBtnText, language === 'fr' && styles.langBtnTextActive]}>
                                         🇫🇷 FR

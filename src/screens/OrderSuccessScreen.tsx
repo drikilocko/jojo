@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
-import { LocalizedText as Text } from '../context/LanguageContext';
+import { LocalizedText as Text, useLanguage, translateText } from '../context/LanguageContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 import { Header } from '../components/Header';
 
 export const OrderSuccessScreen: React.FC = () => {
     const { activeOrder, formatPrice, navigateTo } = useShop();
+    const { language } = useLanguage();
 
     if (!activeOrder) {
         return (
@@ -21,10 +22,10 @@ export const OrderSuccessScreen: React.FC = () => {
     }
 
     const steps = [
-        { key: 'placed', label: 'Order Placed', desc: 'Received & Confirmed', done: true },
-        { key: 'processing', label: 'Processing', desc: 'Preparing package', done: true },
-        { key: 'shipped', label: 'Out for Delivery', desc: 'Courier on the way', done: false },
-        { key: 'delivered', label: 'Delivered', desc: 'Est: Tomorrow 5 PM', done: false },
+        { key: 'placed', label: language === 'fr' ? 'Commande passée' : 'Order Placed', desc: language === 'fr' ? 'Reçue et confirmée' : 'Received & Confirmed', done: true },
+        { key: 'processing', label: language === 'fr' ? 'En préparation' : 'Processing', desc: language === 'fr' ? 'Préparation du colis' : 'Preparing package', done: true },
+        { key: 'shipped', label: language === 'fr' ? 'En cours de livraison' : 'Out for Delivery', desc: language === 'fr' ? 'Le livreur est en route' : 'Courier on the way', done: false },
+        { key: 'delivered', label: language === 'fr' ? 'Livrée' : 'Delivered', desc: language === 'fr' ? 'Prévue : demain à 17 h' : 'Est: Tomorrow 5 PM', done: false },
     ];
 
     return (
@@ -38,9 +39,12 @@ export const OrderSuccessScreen: React.FC = () => {
                         <Ionicons name="checkmark" size={36} color="#ffffff" />
                     </View>
                     <Text style={styles.thankYouText}>Thank you for your order!</Text>
-                    <Text style={styles.orderIdText}>Order #{activeOrder.id}</Text>
+                    <Text style={styles.orderIdText}>
+                        {language === 'fr' ? `Commande n° ${activeOrder.id}` : `Order #${activeOrder.id}`}
+                    </Text>
                     <Text style={styles.estimatedText}>
-                        Estimated Delivery: <Text style={styles.estHighlight}>{activeOrder.estimatedDelivery}</Text>
+                        {language === 'fr' ? 'Livraison estimée : ' : 'Estimated Delivery: '}
+                        <Text style={styles.estHighlight}>{activeOrder.estimatedDelivery}</Text>
                     </Text>
                 </View>
 
@@ -76,16 +80,20 @@ export const OrderSuccessScreen: React.FC = () => {
 
                 {/* Order Details & Summary */}
                 <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>Order Items ({activeOrder.items.length})</Text>
+                    <Text style={styles.sectionTitle}>
+                        {language === 'fr' ? `Articles commandés (${activeOrder.items.length})` : `Order Items (${activeOrder.items.length})`}
+                    </Text>
 
                     {activeOrder.items.map((item, idx) => (
                         <View key={idx} style={styles.orderItemRow}>
                             <Image source={{ uri: item.product.images[0] }} style={styles.itemThumb} />
                             <View style={styles.itemInfo}>
                                 <Text style={styles.itemBrand}>{item.product.brand}</Text>
-                                <Text style={styles.itemName}>{item.product.name}</Text>
+                                <Text style={styles.itemName}>{translateText(item.product.name, language)}</Text>
                                 <Text style={styles.itemSpecs}>
-                                    Color: {item.selectedColor.name} | Qty: {item.quantity}
+                                    {language === 'fr'
+                                        ? `Couleur : ${translateText(item.selectedColor.name, language)} | Qté : ${item.quantity}`
+                                        : `Color: ${item.selectedColor.name} | Qty: ${item.quantity}`}
                                 </Text>
                             </View>
                             <Text style={styles.itemPrice}>
@@ -101,7 +109,9 @@ export const OrderSuccessScreen: React.FC = () => {
                         <Text style={styles.summaryTotal}>{formatPrice(activeOrder.total)}</Text>
                     </View>
                     <Text style={styles.paymentMethodInfo}>
-                        Paid via {activeOrder.paymentMethod.toUpperCase()} • Shipping to {activeOrder.shippingAddress.address}, {activeOrder.shippingAddress.city}
+                        {language === 'fr'
+                            ? `Payé par ${activeOrder.paymentMethod.toUpperCase()} • Livraison à ${activeOrder.shippingAddress.address}, ${activeOrder.shippingAddress.city}`
+                            : `Paid via ${activeOrder.paymentMethod.toUpperCase()} • Shipping to ${activeOrder.shippingAddress.address}, ${activeOrder.shippingAddress.city}`}
                     </Text>
                 </View>
 

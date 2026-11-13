@@ -7,7 +7,7 @@ import {
     Image,
     Modal,
 } from 'react-native';
-import { LocalizedText as Text, LocalizedTextInput as TextInput } from '../context/LanguageContext';
+import { LocalizedText as Text, LocalizedTextInput as TextInput, useLanguage } from '../context/LanguageContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 import { Header } from '../components/Header';
@@ -23,6 +23,7 @@ export const AdminScreen: React.FC = () => {
         formatPrice,
         navigateTo,
     } = useShop();
+    const { language } = useLanguage();
 
     const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'coupons'>('orders');
     const [orderFilter, setOrderFilter] = useState<'all' | 'placed' | 'processing' | 'shipped' | 'delivered'>('all');
@@ -159,7 +160,7 @@ export const AdminScreen: React.FC = () => {
                             color={activeTab === 'orders' ? '#ffffff' : '#475569'}
                         />
                         <Text style={[styles.tabButtonText, activeTab === 'orders' && styles.tabButtonTextActive]}>
-                            Orders Management ({orders.length})
+                            {language === 'fr' ? `Gestion des commandes (${orders.length})` : `Orders Management (${orders.length})`}
                         </Text>
                     </TouchableOpacity>
 
@@ -173,7 +174,7 @@ export const AdminScreen: React.FC = () => {
                             color={activeTab === 'products' ? '#ffffff' : '#475569'}
                         />
                         <Text style={[styles.tabButtonText, activeTab === 'products' && styles.tabButtonTextActive]}>
-                            Inventory Catalog ({products.length})
+                            {language === 'fr' ? `Catalogue d’inventaire (${products.length})` : `Inventory Catalog (${products.length})`}
                         </Text>
                     </TouchableOpacity>
 
@@ -187,7 +188,7 @@ export const AdminScreen: React.FC = () => {
                             color={activeTab === 'coupons' ? '#ffffff' : '#475569'}
                         />
                         <Text style={[styles.tabButtonText, activeTab === 'coupons' && styles.tabButtonTextActive]}>
-                            Promotions & Coupons ({promoCodes.length})
+                            {language === 'fr' ? `Promotions & Coupons (${promoCodes.length})` : `Promotions & Coupons (${promoCodes.length})`}
                         </Text>
                     </TouchableOpacity>
                 </View>

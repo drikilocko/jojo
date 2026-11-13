@@ -8,7 +8,7 @@ import {
     ScrollView,
     useWindowDimensions,
 } from 'react-native';
-import { LocalizedText as Text, LocalizedTextInput as TextInput } from '../context/LanguageContext';
+import { LocalizedText as Text, LocalizedTextInput as TextInput, useLanguage, translateText } from '../context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 import { Header } from '../components/Header';
@@ -30,6 +30,7 @@ export const CartScreen: React.FC = () => {
     } = useShop();
 
     const { width } = useWindowDimensions();
+    const { language } = useLanguage();
     const isLargeScreen = width >= 1024;
 
     const [inputCode, setInputCode] = useState('');
@@ -77,7 +78,9 @@ export const CartScreen: React.FC = () => {
                         <Feather name="arrow-left" size={16} color="#475569" />
                         <Text style={styles.backBtnText}>Continue Shopping</Text>
                     </TouchableOpacity>
-                    <Text style={styles.pageTitle}>Shopping Bag ({cart.length})</Text>
+                    <Text style={styles.pageTitle}>
+                        {language === 'fr' ? `Panier (${cart.length})` : `Shopping Bag (${cart.length})`}
+                    </Text>
                 </View>
 
                 {cart.length === 0 ? (
@@ -106,11 +109,17 @@ export const CartScreen: React.FC = () => {
 
                                     <View style={styles.itemDetails}>
                                         <Text style={styles.itemBrand}>{item.product.brand}</Text>
-                                        <Text style={styles.itemName} numberOfLines={1}>{item.product.name}</Text>
+                                        <Text style={styles.itemName} numberOfLines={1}>
+                                            {translateText(item.product.name, language)}
+                                        </Text>
 
                                         <View style={styles.itemSpecsRow}>
                                             <View style={styles.colorSpecRow}>
-                                                <Text style={styles.specBadge}>Color: {item.selectedColor.name}</Text>
+                                                <Text style={styles.specBadge}>
+                                                    {language === 'fr'
+                                                        ? `Couleur : ${translateText(item.selectedColor.name, language)}`
+                                                        : `Color: ${item.selectedColor.name}`}
+                                                </Text>
                                                 <View style={[styles.colorDot, { backgroundColor: item.selectedColor.hex }]} />
                                             </View>
                                         </View>
@@ -172,7 +181,11 @@ export const CartScreen: React.FC = () => {
                                 {appliedPromo && (
                                     <View style={styles.activePromoBadge}>
                                         <Feather name="check-circle" size={14} color="#16a34a" />
-                                        <Text style={styles.activePromoText}>Code {appliedPromo} applied (-$20)</Text>
+                                        <Text style={styles.activePromoText}>
+                                            {language === 'fr'
+                                                ? `Code ${appliedPromo} appliqué`
+                                                : `Code ${appliedPromo} applied`}
+                                        </Text>
                                         <TouchableOpacity onPress={removePromoCode}>
                                             <Feather name="x" size={14} color="#64748b" />
                                         </TouchableOpacity>
@@ -194,7 +207,7 @@ export const CartScreen: React.FC = () => {
 
                             {discount > 0 && (
                                 <View style={styles.calcRow}>
-                                    <Text style={[styles.calcLabel, styles.discountText]}>Promo Discount ($20 OFF)</Text>
+                                    <Text style={[styles.calcLabel, styles.discountText]}>Promo Discount</Text>
                                     <Text style={[styles.calcValue, styles.discountText]}>-{formatPrice(discount)}</Text>
                                 </View>
                             )}

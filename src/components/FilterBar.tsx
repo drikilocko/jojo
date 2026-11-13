@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { LocalizedText as Text } from '../context/LanguageContext';
+import { LocalizedText as Text, useLanguage, translateText } from '../context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 import { FilterModal } from './FilterModal';
@@ -14,7 +14,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     onToggleCompactView,
     isCompactView,
 }) => {
-    const { filterState, setFilterState, resetFilters } = useShop();
+    const { filterState, setFilterState, resetFilters, formatPrice } = useShop();
+    const { language } = useLanguage();
     const [isModalVisible, setIsModalVisible] = useState(false);
 
     const activeCategoryTitle =
@@ -38,15 +39,15 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     const getSortLabel = () => {
         switch (filterState.sortBy) {
             case 'price-low':
-                return 'Price: Low-High';
+                return language === 'fr' ? 'Prix : croissant' : 'Price: Low-High';
             case 'price-high':
-                return 'Price: High-Low';
+                return language === 'fr' ? 'Prix : décroissant' : 'Price: High-Low';
             case 'rating':
-                return 'Top Rated';
+                return language === 'fr' ? 'Mieux notés' : 'Top Rated';
             case 'newest':
-                return 'Newest Arrivals';
+                return language === 'fr' ? 'Nouveautés' : 'Newest Arrivals';
             default:
-                return 'Sort';
+                return language === 'fr' ? 'Trier' : 'Sort';
         }
     };
 
@@ -67,7 +68,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
                 {activeFiltersCount > 0 && (
                     <TouchableOpacity onPress={resetFilters} style={styles.resetButton}>
-                        <Text style={styles.resetText}>Reset Filters ({activeFiltersCount})</Text>
+                        <Text style={styles.resetText}>
+                            {language === 'fr' ? `Réinitialiser (${activeFiltersCount})` : `Reset Filters (${activeFiltersCount})`}
+                        </Text>
                         <Feather name="x" size={14} color="#111111" />
                     </TouchableOpacity>
                 )}
@@ -96,7 +99,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                         activeOpacity={0.7}
                     >
                         <Text style={[styles.pillText, filterState.productType !== 'ALL' && styles.pillTextActive]}>
-                            Product type {filterState.productType !== 'ALL' ? `: ${filterState.productType}` : ''}
+                            {language === 'fr'
+                                ? `Type de produit${filterState.productType !== 'ALL' ? ` : ${translateText(filterState.productType, language)}` : ''}`
+                                : `Product type${filterState.productType !== 'ALL' ? `: ${filterState.productType}` : ''}`}
                         </Text>
                     </TouchableOpacity>
 
@@ -107,7 +112,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                         activeOpacity={0.7}
                     >
                         <Text style={[styles.pillText, filterState.selectedColor !== 'ALL' && styles.pillTextActive]}>
-                            Colour
+                            {language === 'fr'
+                                ? `Couleur${filterState.selectedColor !== 'ALL' ? ` : ${translateText(filterState.selectedColor, language)}` : ''}`
+                                : `Colour${filterState.selectedColor !== 'ALL' ? `: ${filterState.selectedColor}` : ''}`}
                         </Text>
                     </TouchableOpacity>
 
@@ -118,7 +125,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                         activeOpacity={0.7}
                     >
                         <Text style={[styles.pillText, filterState.maxPrice < 2000 && styles.pillTextActive]}>
-                            Price Range {filterState.maxPrice < 2000 ? `< $${filterState.maxPrice}` : ''}
+                            {language === 'fr'
+                                ? `Fourchette de prix${filterState.maxPrice < 2000 ? ` < ${formatPrice(filterState.maxPrice)}` : ''}`
+                                : `Price Range${filterState.maxPrice < 2000 ? ` < ${formatPrice(filterState.maxPrice)}` : ''}`}
                         </Text>
                     </TouchableOpacity>
                 </ScrollView>

@@ -7,7 +7,7 @@ import {
     ScrollView,
     useWindowDimensions,
 } from 'react-native';
-import { LocalizedText as Text } from '../context/LanguageContext';
+import { LocalizedText as Text, useLanguage, translateText } from '../context/LanguageContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 import { Header } from '../components/Header';
@@ -25,6 +25,7 @@ export const ProductDetailScreen: React.FC = () => {
         products,
     } = useShop();
     const { width } = useWindowDimensions();
+    const { language } = useLanguage();
     const isLargeScreen = width > 768;
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -76,7 +77,11 @@ export const ProductDetailScreen: React.FC = () => {
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 <TouchableOpacity style={styles.breadcrumb} onPress={() => navigateTo('shop')}>
                     <Feather name="arrow-left" size={16} color="#475569" />
-                    <Text style={styles.breadcrumbText}>Back to {selectedProduct.category}</Text>
+                    <Text style={styles.breadcrumbText}>
+                        {language === 'fr'
+                            ? `Retour aux ${translateText(selectedProduct.category, language)}`
+                            : `Back to ${selectedProduct.category}`}
+                    </Text>
                 </TouchableOpacity>
 
                 <View style={[styles.mainLayout, isLargeScreen && styles.mainLayoutRow]}>
@@ -116,7 +121,9 @@ export const ProductDetailScreen: React.FC = () => {
 
                     <View style={styles.detailsPanel}>
                         <Text style={styles.brandTitle}>{selectedProduct.brand}</Text>
-                        <Text style={styles.productTitle}>{selectedProduct.name}</Text>
+                        <Text style={styles.productTitle}>
+                            {translateText(selectedProduct.name, language)}
+                        </Text>
 
                         <View style={styles.priceRow}>
                             <Text style={styles.priceText}>{formatPrice(selectedProduct.price)}</Text>
@@ -128,13 +135,16 @@ export const ProductDetailScreen: React.FC = () => {
                             <View style={styles.ratingBadge}>
                                 <Ionicons name="star" size={14} color="#111111" />
                                 <Text style={styles.ratingText}>{selectedProduct.rating}</Text>
-                                <Text style={styles.reviewsCount}>({selectedProduct.reviewsCount} reviews)</Text>
+                                <Text style={styles.reviewsCount}>
+                                    ({selectedProduct.reviewsCount} {language === 'fr' ? 'avis' : 'reviews'})
+                                </Text>
                             </View>
                         </View>
 
                         <View style={styles.section}>
                             <Text style={styles.sectionLabel}>
-                                Color: <Text style={styles.sectionLabelValue}>{selectedColor.name}</Text>
+                                {language === 'fr' ? 'Couleur : ' : 'Color: '}
+                                <Text style={styles.sectionLabelValue}>{translateText(selectedColor.name, language)}</Text>
                             </Text>
                             <View style={styles.colorSwatchesRow}>
                                 {selectedProduct.colors.map((color) => (
@@ -189,7 +199,9 @@ export const ProductDetailScreen: React.FC = () => {
                                 />
                             </TouchableOpacity>
                             {openAccordion === 'desc' && (
-                                <Text style={styles.accordionBody}>{selectedProduct.description}</Text>
+                                <Text style={styles.accordionBody}>
+                                    {translateText(selectedProduct.description, language)}
+                                </Text>
                             )}
 
                             <TouchableOpacity
@@ -204,7 +216,9 @@ export const ProductDetailScreen: React.FC = () => {
                                 />
                             </TouchableOpacity>
                             {openAccordion === 'specifications' && (
-                                <Text style={styles.accordionBody}>{selectedProduct.specifications}</Text>
+                                <Text style={styles.accordionBody}>
+                                    {translateText(selectedProduct.specifications, language)}
+                                </Text>
                             )}
 
                             <TouchableOpacity
@@ -220,8 +234,9 @@ export const ProductDetailScreen: React.FC = () => {
                             </TouchableOpacity>
                             {openAccordion === 'shipping' && (
                                 <Text style={styles.accordionBody}>
-                                    Free Express Delivery on orders over $100. Standard delivery 2-4 business days.
-                                    Returns are accepted within 30 days of receipt.
+                                    {language === 'fr'
+                                        ? `Livraison express gratuite dès ${formatPrice(100)}. Livraison standard sous 2 à 4 jours ouvrés. Les retours sont acceptés sous 30 jours après réception.`
+                                        : `Free Express Delivery on orders over ${formatPrice(100)}. Standard delivery 2-4 business days. Returns are accepted within 30 days of receipt.`}
                                 </Text>
                             )}
                         </View>

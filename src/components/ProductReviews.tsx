@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { LocalizedText as Text, LocalizedTextInput as TextInput } from '../context/LanguageContext';
+import { LocalizedText as Text, LocalizedTextInput as TextInput, useLanguage } from '../context/LanguageContext';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Product } from '../types';
 
@@ -19,6 +19,7 @@ interface Review {
 }
 
 export const ProductReviews: React.FC<ProductReviewsProps> = ({ product }) => {
+    const { language } = useLanguage();
     const [reviews, setReviews] = useState<Review[]>([
         {
             id: 'rev-1',
@@ -98,7 +99,7 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({ product }) => {
                 <View>
                     <Text style={styles.sectionTitle}>Customer Reviews & Ratings</Text>
                     <Text style={styles.scoreSub}>
-                        {product.rating.toFixed(1)} / 5 · {product.reviewsCount} reviews
+                        {product.rating.toFixed(1)} / 5 · {product.reviewsCount} {language === 'fr' ? 'avis' : 'reviews'}
                     </Text>
                 </View>
                 <Feather name={showReviews ? 'chevron-up' : 'chevron-down'} size={22} color="#111111" />
@@ -111,7 +112,11 @@ export const ProductReviews: React.FC<ProductReviewsProps> = ({ product }) => {
                 <View style={styles.scoreCol}>
                     <Text style={styles.scoreNumber}>{product.rating.toFixed(1)}</Text>
                     {renderStars(Math.round(product.rating), 18)}
-                    <Text style={styles.scoreSub}>Based on {product.reviewsCount + reviews.length - 3} reviews</Text>
+                    <Text style={styles.scoreSub}>
+                        {language === 'fr'
+                            ? `Basé sur ${product.reviewsCount + reviews.length - 3} avis`
+                            : `Based on ${product.reviewsCount + reviews.length - 3} reviews`}
+                    </Text>
                 </View>
 
                 <View style={styles.dividerCol} />

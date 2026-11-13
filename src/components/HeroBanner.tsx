@@ -10,7 +10,7 @@ import {
     useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LocalizedText as Text } from '../context/LanguageContext';
+import { LocalizedText as Text, useLanguage, translateText } from '../context/LanguageContext';
 import { useShop } from '../context/ShopContext';
 import { Header } from './Header';
 
@@ -41,7 +41,8 @@ type HeroBannerProps = {
 };
 
 export const HeroBanner: React.FC<HeroBannerProps> = ({ horizontalBleed }) => {
-    const { applyPromoCode, appliedPromo } = useShop();
+    const { applyPromoCode, appliedPromo, formatPrice, setFilterState } = useShop();
+    const { language } = useLanguage();
     const { width, height } = useWindowDimensions();
     const scrollRef = useRef<ScrollView>(null);
     const activeSlideRef = useRef(0);
@@ -116,15 +117,26 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ horizontalBleed }) => {
                         />
 
                         <View style={styles.sticker}>
-                            <Text style={styles.stickerText}>SALE</Text>
+                            <Text style={styles.stickerText}>{language === 'fr' ? 'PROMO' : 'SALE'}</Text>
                         </View>
 
                         <View style={[styles.contentWrapper, { width: Math.min(width * 0.72, 640) }]}>
-                            <Text style={styles.categoryText}>{slide.category}</Text>
+                            <TouchableOpacity
+                                onPress={() => setFilterState((prev) => ({ ...prev, category: slide.category }))}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.categoryText}>{translateText(slide.category, language)}</Text>
+                            </TouchableOpacity>
                             <Text style={styles.titleText}>
-                                {'$20 OFF $100 PLUS,'}{'\n'}{'GET FREE NEXT-DAY DELIVERY'}
+                                {language === 'fr'
+                                    ? `${formatPrice(20)} DE RÉDUCTION DÈS ${formatPrice(100)}`
+                                    : `${formatPrice(20)} OFF ORDERS OVER ${formatPrice(100)},`}
+                                {'\n'}
+                                {language === 'fr' ? 'LIVRAISON GRATUITE LE LENDEMAIN' : 'GET FREE NEXT-DAY DELIVERY'}
                             </Text>
-                            <Text style={styles.subtitleText}>With code: 20100</Text>
+                            <Text style={styles.subtitleText}>
+                                {language === 'fr' ? 'Avec le code : 20100' : 'With code: 20100'}
+                            </Text>
 
                             <TouchableOpacity
                                 style={styles.okButton}
@@ -132,7 +144,9 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ horizontalBleed }) => {
                                 activeOpacity={0.8}
                             >
                                 <Text style={styles.okButtonText}>
-                                    {appliedPromo === '20100' || copied ? 'CODE APPLIED ✓' : 'OK'}
+                                    {appliedPromo === '20100' || copied
+                                        ? (language === 'fr' ? 'CODE APPLIQUÉ ✓' : 'CODE APPLIED ✓')
+                                        : 'OK'}
                                 </Text>
                             </TouchableOpacity>
                         </View>

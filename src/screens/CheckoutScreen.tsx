@@ -35,6 +35,7 @@ export const CheckoutScreen: React.FC = () => {
         placeOrder,
         formatPrice,
         navigateTo,
+        currency,
     } = useShop();
 
     const { width } = useWindowDimensions();
@@ -108,9 +109,10 @@ export const CheckoutScreen: React.FC = () => {
     const handleMobileMoneyPayment = async (orderId: string, method: 'tmoney' | 'flooz') => {
         setPaydunyaLoading(true);
         try {
+            const operatorKey = method === 'tmoney' ? 'tmoney-tg' : 'flooz-tg';
             const result = await initiatePayDunyaPayment(
                 orderId,
-                method,
+                operatorKey,
                 momoPhone || phone
             );
 
@@ -520,7 +522,7 @@ export const CheckoutScreen: React.FC = () => {
                                 <Text style={styles.totalValue}>{formatPrice(summaryTotal)}</Text>
                             </View>
 
-                            {isMobileMoney && (
+                            {isMobileMoney && currency.code !== 'FCFA' && (
                                 <View style={styles.xofRow}>
                                     <Text style={styles.xofLabel}>Équivalent XOF</Text>
                                     <Text style={styles.xofValue}>{usdToXOF(summaryTotal).toLocaleString()} FCFA</Text>

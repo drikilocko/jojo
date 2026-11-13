@@ -1,0 +1,6 @@
+// Arrière-plans configurés depuis le dossier video/
+export const GATE_BG_IMAGE = require('../../video/imgi_2_eyJidWNrZXQiOiJteW0tcHJvZC1ldS13ZXN0LTMtbWVkaWFzIiwia2V5IjoibWVkaWFzLzIwMjQvMDcvMDgvMjAyNDA3MDgxMjM0MTctLXprUUQyOGEzd3YtYlVMaUZmXzJ2R05KTmh2MmQucG5nIn0.jpeg');
+
+export const PAYMENT_BG_IMAGE = require('../../video/imgi_1_eyJidWNrZXQiOiJteW0tcHJvZC1ldS13ZXN0LTMtbWVkaWFzIiwia2V5IjoibWVkaWFzLzIwMjQvMDcvMDgvMjAyNDA3MDgxMjQ5NDUtS1BFcU1zQVFEbEFtb0N0ODBucmdxQUhyUElaOFUucG5nIn0.jpeg');
+
+export const VIDEO_BG_IMAGE = require('../../video/imgi_9_eyJidWNrZXQiOiJteW0tcHJvZC1ldS13ZXN0LTMtbWVkaWFzIiwia2V5IjoibWVkaWFzLzIwMjQvMDcvMjcvMjAyNDA3MjcxMTI0NDktcGQtdmQ5dnd5V1poRHE2Q3lJVHlSS3hCbC5wbmcifQ.jpeg');
