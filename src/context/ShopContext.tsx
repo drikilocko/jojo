@@ -4,7 +4,7 @@ import { Product, CartItem, FilterState, CurrencyCode, Currency, Order, User } f
 import { PRODUCTS, CATEGORIES, CURRENCIES } from '../data/mockData';
 import { getErrorMessage, isExpiredJwtError, supabase } from '../lib/supabase';
 import { translateText, useLanguage } from './LanguageContext';
-import { ACCESS_CODE_STORAGE_KEY } from '../screens/GateScreen';
+import { getPaidAccessExpiry } from '../lib/access';
 
 type ScreenName = 'shop' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'wishlist' | 'admin' | 'account' | 'explore' | 'gate' | 'quick-payment' | 'video';
 
@@ -168,9 +168,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [activeOrder, setActiveOrder] = useState<Order | null>(null);
 
     useEffect(() => {
-        AsyncStorage.getItem(ACCESS_CODE_STORAGE_KEY)
-            .then((unlocked) => {
-                if (unlocked === 'true') {
+        getPaidAccessExpiry()
+            .then((expiry) => {
+                if (expiry !== null) {
                     setIsSiteUnlocked(true);
                     setActiveScreen('video');
                 } else {
@@ -178,13 +178,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setActiveScreen('gate');
                 }
             })
-            .catch(() => {
+            .catch((error: unknown) => {
+                console.error('Unable to verify saved PayDunya access.', error);
+                setIsSiteUnlocked(false);
                 setActiveScreen('gate');
             });
     }, []);
 
     const lockSite = async () => {
-        await AsyncStorage.removeItem(ACCESS_CODE_STORAGE_KEY);
         setIsSiteUnlocked(false);
         setActiveScreen('gate');
     };

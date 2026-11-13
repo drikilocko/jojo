@@ -24,6 +24,15 @@ const corsHeaders = {
 const jsonResp = (body, status) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 const isRec = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
+const customDataValue = (customData, key) => {
+    if (isRec(customData)) return customData[key];
+    if (Array.isArray(customData)) {
+        const entry = customData.find((item) => isRec(item) && item.name === key);
+        return isRec(entry) ? entry.value : undefined;
+    }
+    return undefined;
+};
+const SUBSCRIPTION_AMOUNT_XOF = 30500;
 
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -43,16 +52,41 @@ Deno.serve(async (req) => {
     // ── check-status ──────────────────────────────────────────────────────
     if (payload.action === 'check-status') {
         const tok = payload.token;
-        if (typeof tok !== 'string' || !tok.trim()) return jsonResp({ error: 'Token manquant.' }, 400);
+        const orderId = payload.orderId;
+        if (typeof tok !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(tok.trim()))
+            return jsonResp({ error: 'Token invalide.' }, 400);
+        if (payload.purchaseType === 'subscription' && (typeof orderId !== 'string' || !orderId.trim()))
+            return jsonResp({ error: 'Référence de paiement manquante.' }, 400);
+
         try {
-            const r = await fetch(`https://app.paydunya.com/api/v1/checkout-invoice/confirm/${tok.trim()}`, { method: 'GET', headers: pdHeaders });
+            const r = await fetch(`https://app.paydunya.com/api/v1/checkout-invoice/confirm/${encodeURIComponent(tok.trim())}`, { method: 'GET', headers: pdHeaders });
             const d = await r.json();
-            return jsonResp({ status: d.status, data: d }, 200);
-        } catch { return jsonResp({ error: 'Impossible de verifier le statut.' }, 502); }
+            if (!r.ok || !isRec(d)) return jsonResp({ error: 'Réponse de vérification PayDunya invalide.' }, 502);
+
+            if (payload.purchaseType === 'subscription') {
+                const invoice = isRec(d.invoice) ? d.invoice : null;
+                const customData = d.custom_data ?? invoice?.custom_data;
+                const invoiceAmount = invoice?.total_amount ?? d.total_amount;
+                if (
+                    customDataValue(customData, 'order_id') !== orderId
+                    || customDataValue(customData, 'purchase_type') !== 'subscription'
+                    || Number(invoiceAmount) !== SUBSCRIPTION_AMOUNT_XOF
+                ) {
+                    return jsonResp({ error: 'Ce paiement ne correspond pas à cet abonnement.' }, 403);
+                }
+            }
+
+            const rawStatus = typeof d.status === 'string' ? d.status.toLowerCase() : 'pending';
+            const status = ['completed', 'pending', 'cancelled', 'failed'].includes(rawStatus) ? rawStatus : 'pending';
+            return jsonResp({ status }, 200);
+        } catch {
+            return jsonResp({ error: 'Impossible de verifier le statut.' }, 502);
+        }
     }
 
     // ── Initier un paiement ───────────────────────────────────────────────
     const { orderId, operatorKey, paymentPhone, customerName, customerEmail, amountXOF } = payload;
+    const purchaseType = payload.purchaseType === 'subscription' ? 'subscription' : 'order';
     if (typeof orderId !== 'string' || !orderId.trim()) return jsonResp({ error: 'orderId invalide.' }, 400);
     if (typeof operatorKey !== 'string' || !OPERATOR_CONFIG[operatorKey]) return jsonResp({ error: 'Operateur non supporte: ' + operatorKey }, 400);
     if (typeof paymentPhone !== 'string' || !/^\d{6,15}$/.test(paymentPhone.replace(/\D/g, ''))) return jsonResp({ error: 'Numero de telephone invalide.' }, 400);
@@ -60,7 +94,12 @@ Deno.serve(async (req) => {
     const phone = paymentPhone.replace(/\D/g, '');
     const name  = (typeof customerName === 'string' && customerName.trim()) ? customerName.trim() : 'Client VIP';
     const email = (typeof customerEmail === 'string' && customerEmail.trim()) ? customerEmail.trim() : 'vip@zonedepapy.com';
-    const amount = (typeof amountXOF === 'number' && amountXOF > 0) ? amountXOF : 30500;
+    const amount = purchaseType === 'subscription'
+        ? SUBSCRIPTION_AMOUNT_XOF
+        : (typeof amountXOF === 'number' && amountXOF > 0) ? amountXOF : SUBSCRIPTION_AMOUNT_XOF;
+    const description = purchaseType === 'subscription'
+        ? 'Pass Videos VIP 30 Jours - Zone de Papy'
+        : 'Commande Zone de Papy';
 
     // Creer la facture
     let invRes;
@@ -68,10 +107,16 @@ Deno.serve(async (req) => {
         invRes = await fetch('https://app.paydunya.com/api/v1/checkout-invoice/create', {
             method: 'POST', headers: pdHeaders,
             body: JSON.stringify({
-                invoice: { total_amount: amount, description: 'Pass Videos VIP 30 Jours - Zone de Papy' },
+                invoice: { total_amount: amount, description },
                 store: { name: 'Zone de Papy', tagline: 'Acces VIP Exclusif', phone_number: '+22890000000', postal_address: 'Afrique de Ouest' },
                 actions: { cancel_url: 'https://zonedepapy.com/cancel', return_url: 'https://zonedepapy.com/success', callback_url: 'https://zonedepapy.com/api/ipn' },
-                custom_data: { order_id: orderId, customer_name: name, customer_phone: phone, operator: operatorKey },
+                custom_data: {
+                    order_id: orderId,
+                    purchase_type: purchaseType,
+                    customer_name: name,
+                    customer_phone: phone,
+                    operator: operatorKey,
+                },
             }),
         });
     } catch { return jsonResp({ error: 'Impossible de joindre PayDunya.' }, 502); }

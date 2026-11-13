@@ -16,11 +16,13 @@ Email/password authentication is ready. To use Google sign-in, enable the Google
 
 ## PayDunya mobile-money checkout
 
-The app calls the `paydunya-checkout` Edge Function instead of calling PayDunya from the browser. It creates a PayDunya invoice and starts the T-Money or Moov Togo payment through SoftPay, so the customer confirms the payment on their phone without opening the hosted checkout page. Deploy it from the project root with the Supabase CLI:
+The app calls the `paydunya-checkout` Edge Function instead of calling PayDunya from the browser. It creates a PayDunya invoice and starts the selected supported Mobile Money payment through SoftPay, so the customer confirms the payment on their phone without opening the hosted checkout page. Deploy it from the project root with the Supabase CLI:
 
 ```sh
-supabase functions deploy paydunya-checkout
+supabase functions deploy paydunya-checkout --no-verify-jwt
 ```
+
+VIP access does not require Google sign-in or an access code. The app grants the 30-day pass only after the Edge Function confirms a completed PayDunya subscription invoice for the fixed 30,500 XOF amount. The VIP checkout currently offers mobile money; do not re-enable a client-side simulated card payment.
 
 In the Supabase Dashboard, open **Edge Functions → Secrets** and set `PAYDUNYA_MASTER_KEY`, `PAYDUNYA_TOKEN`, and `PAYDUNYA_PRIVATE_KEY` using the credentials with those exact names from the same PayDunya application and mode. A PayDunya Public Key is not a substitute for the Master Key required by the Checkout Invoice API. These credentials must not use an `EXPO_PUBLIC_` prefix or be included in the app bundle. Remove any PayDunya credentials from `.env.local` after moving them to Supabase. Since the old implementation exposed payment credentials in client code, rotate those credentials before adding them as Edge Function secrets.
 

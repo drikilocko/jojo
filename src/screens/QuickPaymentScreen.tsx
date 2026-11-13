@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -13,12 +13,15 @@ import {
     ImageBackground,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 import { initiatePayDunyaPayment, checkPayDunyaPaymentStatus } from '../lib/paydunya';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { VALID_CODES_STORAGE_KEY } from './GateScreen';
-import { ACCESS_EXPIRY_STORAGE_KEY } from './VideoScreen';
+import {
+    clearPendingPayDunyaPayment,
+    getPendingPayDunyaPayment,
+    grantPaidAccess,
+    savePendingPayDunyaPayment,
+} from '../lib/access';
 import { PAYMENT_BG_IMAGE } from '../data/media';
 
 interface CountryConfig {
@@ -127,10 +130,6 @@ export const QuickPaymentScreen: React.FC = () => {
     // Formule mensuelle fixe : 50 $ par mois (= 30 500 FCFA)
     const PRICE_USD = '50 $';
     const priceFCFA = 30500;
-    const DURATION_DAYS = 30;
-
-    // Type de méthode : 'mobile' ou 'card'
-    const [methodType, setMethodType] = useState<'mobile' | 'card'>('mobile');
 
     // Pays et Opérateur
     const [selectedCountryId, setSelectedCountryId] = useState<string>('TG');
@@ -138,10 +137,6 @@ export const QuickPaymentScreen: React.FC = () => {
 
     // Champs de formulaire
     const [phone, setPhone] = useState('');
-    const [name, setName] = useState('');
-    const [cardNumber, setCardNumber] = useState('');
-    const [cardExpiry, setCardExpiry] = useState('');
-    const [cardCvc, setCardCvc] = useState('');
 
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -149,14 +144,30 @@ export const QuickPaymentScreen: React.FC = () => {
     // États de vérification PayDunya
     const [waitingForPayment, setWaitingForPayment] = useState(false);
     const [currentInvoiceToken, setCurrentInvoiceToken] = useState<string | null>(null);
+    const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
     const [verifying, setVerifying] = useState(false);
-
-    // Modal de confirmation / réception du code
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [generatedCode, setGeneratedCode] = useState('');
-    const [copied, setCopied] = useState(false);
+    const verificationInProgress = useRef(false);
 
     const currentCountry = COUNTRIES.find((c) => c.id === selectedCountryId) || COUNTRIES[0];
+
+    useEffect(() => {
+        let mounted = true;
+        getPendingPayDunyaPayment()
+            .then((pendingPayment) => {
+                if (!mounted || !pendingPayment) return;
+                setCurrentInvoiceToken(pendingPayment.token);
+                setCurrentOrderId(pendingPayment.orderId);
+                setWaitingForPayment(true);
+            })
+            .catch((storageError: unknown) => {
+                console.error('Unable to resume pending PayDunya payment.', storageError);
+                if (mounted) setErrorMessage('Impossible de reprendre la vérification du paiement.');
+            });
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     // Quand on change de pays, sélectionner le premier opérateur du pays
     const handleSelectCountry = (country: CountryConfig) => {
@@ -168,44 +179,49 @@ export const QuickPaymentScreen: React.FC = () => {
         setErrorMessage(null);
     };
 
-    // Délivrer le code UNIQUEMENT après paiement validé
-    const deliverCodeAndFinish = async () => {
-        const newCode = `VIP-${Math.floor(1000 + Math.random() * 9000)}`;
-        const existingCodesRaw = await AsyncStorage.getItem(VALID_CODES_STORAGE_KEY);
-        const existingCodes: string[] = existingCodesRaw ? JSON.parse(existingCodesRaw) : [];
-        if (!existingCodes.includes(newCode)) {
-            existingCodes.push(newCode);
-            await AsyncStorage.setItem(VALID_CODES_STORAGE_KEY, JSON.stringify(existingCodes));
-        }
-
-        const expiryTimestamp = Date.now() + DURATION_DAYS * 24 * 60 * 60 * 1000;
-        await AsyncStorage.setItem(ACCESS_EXPIRY_STORAGE_KEY, expiryTimestamp.toString());
-
-        setGeneratedCode(newCode);
+    const grantAccess = async () => {
+        await grantPaidAccess();
+        await clearPendingPayDunyaPayment();
         setWaitingForPayment(false);
-        setShowSuccessModal(true);
+        setCurrentInvoiceToken(null);
+        setCurrentOrderId(null);
     };
 
-    // Vérifier auprès de PayDunya si le code PIN a été validé sur le téléphone
-    const checkPaymentConfirmation = async (tokenToCheck?: string) => {
+    const checkPaymentConfirmation = async (tokenToCheck?: string, orderIdToCheck?: string) => {
         const token = tokenToCheck || currentInvoiceToken;
-        if (!token) return;
+        const orderId = orderIdToCheck || currentOrderId;
+        if (!token || !orderId || verificationInProgress.current) return;
 
+        verificationInProgress.current = true;
         setVerifying(true);
+        let paymentCompleted = false;
         try {
-            const res = await checkPayDunyaPaymentStatus(token);
+            const res = await checkPayDunyaPaymentStatus(token, orderId, 'subscription');
+            if (!res.success) {
+                setErrorMessage(res.error || 'Impossible de vérifier le paiement auprès de PayDunya.');
+                return;
+            }
+
+            setErrorMessage(null);
             if (res.status === 'completed') {
-                // Paiement mobile confirmé par PayDunya !
-                await deliverCodeAndFinish();
+                await grantAccess();
+                paymentCompleted = true;
             } else if (res.status === 'cancelled' || res.status === 'failed') {
+                await clearPendingPayDunyaPayment();
                 setWaitingForPayment(false);
+                setCurrentInvoiceToken(null);
+                setCurrentOrderId(null);
                 setErrorMessage('Le paiement a été annulé sur votre téléphone ou le délai a expiré.');
             }
-        } catch {
-            // En attente
+        } catch (verificationError: unknown) {
+            setErrorMessage(verificationError instanceof Error
+                ? verificationError.message
+                : 'Impossible de vérifier le paiement auprès de PayDunya.');
         } finally {
+            verificationInProgress.current = false;
             setVerifying(false);
         }
+        if (paymentCompleted) navigateTo('video');
     };
 
     // Polling automatique toutes les 4 secondes pendant que l'utilisateur valide son code PIN
@@ -213,81 +229,61 @@ export const QuickPaymentScreen: React.FC = () => {
         if (!waitingForPayment || !currentInvoiceToken) return;
 
         const interval = setInterval(() => {
-            checkPaymentConfirmation(currentInvoiceToken);
+            checkPaymentConfirmation(currentInvoiceToken, currentOrderId ?? undefined);
         }, 4000);
 
         return () => clearInterval(interval);
-    }, [waitingForPayment, currentInvoiceToken]);
+    }, [waitingForPayment, currentInvoiceToken, currentOrderId]);
 
     const handlePayment = async () => {
         setErrorMessage(null);
+        if (currentInvoiceToken && currentOrderId) {
+            setWaitingForPayment(true);
+            return;
+        }
 
-        if (methodType === 'mobile') {
-            const cleanDigits = phone.replace(/\D/g, '');
-            if (cleanDigits.length < currentCountry.minDigits || cleanDigits.length > currentCountry.maxDigits) {
-                setErrorMessage(
-                    `Veuillez entrer un numéro de téléphone valide pour le ${currentCountry.name} (${currentCountry.minDigits} chiffres requis, ex: ${currentCountry.phonePlaceholder}).`
-                );
-                return;
-            }
-        } else {
-            if (!cardNumber || cardNumber.replace(/\s/g, '').length < 16) {
-                setErrorMessage('Veuillez renseigner un numéro de carte bancaire valide à 16 chiffres.');
-                return;
-            }
+        const cleanDigits = phone.replace(/\D/g, '');
+        if (cleanDigits.length < currentCountry.minDigits || cleanDigits.length > currentCountry.maxDigits) {
+            setErrorMessage(
+                `Veuillez entrer un numéro de téléphone valide pour le ${currentCountry.name} (${currentCountry.minDigits} chiffres requis, ex: ${currentCountry.phonePlaceholder}).`
+            );
+            return;
         }
 
         setLoading(true);
 
         try {
             const orderId = `PASS-${Date.now()}`;
+            const dialDigits = currentCountry.dialCode.replace(/\D/g, '');
+            const fullPhone = cleanDigits.startsWith(dialDigits)
+                ? cleanDigits
+                : `${dialDigits}${cleanDigits}`;
 
-            if (methodType === 'mobile') {
-                // Format international sans le '+'
-                const cleanDigits = phone.replace(/\D/g, '');
-                const dialDigits = currentCountry.dialCode.replace(/\D/g, '');
-                const fullPhone = cleanDigits.startsWith(dialDigits)
-                    ? cleanDigits
-                    : `${dialDigits}${cleanDigits}`;
+            const result = await initiatePayDunyaPayment(orderId, selectedOperatorKey, fullPhone, {
+                purchaseType: 'subscription',
+            });
 
-                const result = await initiatePayDunyaPayment(orderId, selectedOperatorKey, fullPhone, {
-                    amountXOF: priceFCFA,
-                    customerName: name.trim() || 'Client VIP',
-                });
-
-                if (!result.success) {
-                    setErrorMessage(result.error || 'Erreur lors de l\'envoi de la demande de paiement PayDunya.');
-                    setLoading(false);
-                    return;
-                }
-
-                if (result.invoiceToken) {
-                    setCurrentInvoiceToken(result.invoiceToken);
-                    setWaitingForPayment(true);
-                    setLoading(false);
-                    return;
-                }
-            } else {
-                // Simulation paiement carte bancaire
-                await new Promise((res) => setTimeout(res, 1200));
-                await deliverCodeAndFinish();
+            if (!result.success) {
+                setErrorMessage(result.error || 'Erreur lors de l\'envoi de la demande de paiement PayDunya.');
+                return;
             }
-        } catch (e: any) {
-            setErrorMessage(e.message || 'Une erreur est survenue lors de l\'initiation du paiement.');
+
+            if (!result.invoiceToken) {
+                setErrorMessage('PayDunya n’a pas retourné de référence de paiement valide.');
+                return;
+            }
+
+            await savePendingPayDunyaPayment(result.invoiceToken, orderId);
+            setCurrentInvoiceToken(result.invoiceToken);
+            setCurrentOrderId(orderId);
+            setWaitingForPayment(true);
+        } catch (paymentError: unknown) {
+            setErrorMessage(paymentError instanceof Error
+                ? paymentError.message
+                : 'Une erreur est survenue lors de l\'initiation du paiement.');
         } finally {
             setLoading(false);
         }
-    };
-
-    // Rediriger vers l'écran d'accueil pour que l'utilisateur saisisse son code manuellement
-    const handleReturnToGate = () => {
-        setShowSuccessModal(false);
-        navigateTo('gate');
-    };
-
-    const handleCopyCode = () => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
     };
 
     const selectedOperator = currentCountry.operators.find((op) => op.key === selectedOperatorKey);
@@ -356,170 +352,83 @@ export const QuickPaymentScreen: React.FC = () => {
                     </View>
                 </LinearGradient>
 
-                {/* Choix du mode principal : Mobile Money ou Carte Bancaire */}
-                <View style={styles.tabContainer}>
-                    <TouchableOpacity
-                        style={[styles.tabButton, methodType === 'mobile' && styles.tabButtonActive]}
-                        onPress={() => setMethodType('mobile')}
-                        activeOpacity={0.8}
+                <View>
+                    <Text style={styles.sectionTitle}>1. Choisissez votre pays</Text>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.countriesScroll}
                     >
-                        <Feather name="smartphone" size={16} color={methodType === 'mobile' ? '#ffffff' : '#94a3b8'} />
-                        <Text style={[styles.tabButtonText, methodType === 'mobile' && styles.tabButtonTextActive]}>
-                            Mobile Money (Afrique)
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tabButton, methodType === 'card' && styles.tabButtonActive]}
-                        onPress={() => setMethodType('card')}
-                        activeOpacity={0.8}
-                    >
-                        <Feather name="credit-card" size={16} color={methodType === 'card' ? '#ffffff' : '#94a3b8'} />
-                        <Text style={[styles.tabButtonText, methodType === 'card' && styles.tabButtonTextActive]}>
-                            Carte Bancaire (CB)
-                        </Text>
-                    </TouchableOpacity>
-                </View>
+                        {COUNTRIES.map((c) => {
+                            const isSelected = c.id === selectedCountryId;
+                            return (
+                                <TouchableOpacity
+                                    key={c.id}
+                                    style={[styles.countryChip, isSelected && styles.countryChipActive]}
+                                    onPress={() => handleSelectCountry(c)}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.countryFlag}>{c.flag}</Text>
+                                    <Text style={[styles.countryName, isSelected && styles.countryNameActive]}>
+                                        {c.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
 
-                {methodType === 'mobile' ? (
-                    <View>
-                        {/* 1. Sélecteur de PAYS */}
-                        <Text style={styles.sectionTitle}>1. Choisissez votre Pays</Text>
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.countriesScroll}
-                        >
-                            {COUNTRIES.map((c) => {
-                                const isSelected = c.id === selectedCountryId;
-                                return (
-                                    <TouchableOpacity
-                                        key={c.id}
-                                        style={[styles.countryChip, isSelected && styles.countryChipActive]}
-                                        onPress={() => handleSelectCountry(c)}
-                                        activeOpacity={0.8}
-                                    >
-                                        <Text style={styles.countryFlag}>{c.flag}</Text>
-                                        <Text style={[styles.countryName, isSelected && styles.countryNameActive]}>
-                                            {c.name}
+                    <Text style={[styles.sectionTitle, { marginTop: 18 }]}>
+                        2. Choisissez votre opérateur Mobile Money ({currentCountry.name})
+                    </Text>
+                    <View style={styles.operatorsGrid}>
+                        {currentCountry.operators.map((op) => {
+                            const isSelected = op.key === selectedOperatorKey;
+                            return (
+                                <TouchableOpacity
+                                    key={op.key}
+                                    style={[styles.operatorCard, isSelected && styles.operatorCardActive]}
+                                    onPress={() => setSelectedOperatorKey(op.key)}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={[styles.operatorBadge, { backgroundColor: op.color }]}>
+                                        <Text style={[styles.operatorBadgeText, { color: op.textColor || '#fff' }]}>
+                                            {op.short}
                                         </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </ScrollView>
-
-                        {/* 2. Sélecteur d'OPÉRATEUR MOBILE MONEY */}
-                        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>
-                            2. Choisissez votre Opérateur Mobile ({currentCountry.name})
-                        </Text>
-                        <View style={styles.operatorsGrid}>
-                            {currentCountry.operators.map((op) => {
-                                const isSelected = op.key === selectedOperatorKey;
-                                return (
-                                    <TouchableOpacity
-                                        key={op.key}
-                                        style={[styles.operatorCard, isSelected && styles.operatorCardActive]}
-                                        onPress={() => setSelectedOperatorKey(op.key)}
-                                        activeOpacity={0.8}
-                                    >
-                                        <View style={[styles.operatorBadge, { backgroundColor: op.color }]}>
-                                            <Text style={[styles.operatorBadgeText, { color: op.textColor || '#fff' }]}>
-                                                {op.short}
-                                            </Text>
+                                    </View>
+                                    <Text style={[styles.operatorName, isSelected && styles.operatorNameActive]}>
+                                        {op.name}
+                                    </Text>
+                                    {isSelected && (
+                                        <View style={styles.operatorCheckCircle}>
+                                            <Feather name="check" size={11} color="#ffffff" />
                                         </View>
-                                        <Text style={[styles.operatorName, isSelected && styles.operatorNameActive]}>
-                                            {op.name}
-                                        </Text>
-                                        {isSelected && (
-                                            <View style={styles.operatorCheckCircle}>
-                                                <Feather name="check" size={11} color="#ffffff" />
-                                            </View>
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-
-                        {/* 3. Numéro de téléphone */}
-                        <View style={styles.formContainer}>
-                            <Text style={styles.fieldLabel}>
-                                Votre numéro de téléphone {selectedOperator?.name || 'Mobile'}
-                            </Text>
-                            <View style={styles.inputBox}>
-                                <Text style={styles.prefixText}>{currentCountry.dialCode}</Text>
-                                <TextInput
-                                    style={styles.fieldInput}
-                                    placeholder={currentCountry.phonePlaceholder}
-                                    placeholderTextColor="#64748b"
-                                    keyboardType="phone-pad"
-                                    value={phone}
-                                    onChangeText={setPhone}
-                                    maxLength={14}
-                                />
-                            </View>
-                            <Text style={styles.helpText}>
-                                Vous recevrez une demande de validation USSD directement sur votre mobile pour confirmer {priceFCFA.toLocaleString('fr-FR')} FCFA.
-                            </Text>
-                        </View>
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
-                ) : (
-                    /* Carte bancaire */
+
                     <View style={styles.formContainer}>
-                        <Text style={styles.fieldLabel}>Nom complet sur la carte</Text>
+                        <Text style={styles.fieldLabel}>
+                            Votre numéro de téléphone {selectedOperator?.name || 'Mobile'}
+                        </Text>
                         <View style={styles.inputBox}>
+                            <Text style={styles.prefixText}>{currentCountry.dialCode}</Text>
                             <TextInput
                                 style={styles.fieldInput}
-                                placeholder="Ex: Jean Dupont"
+                                placeholder={currentCountry.phonePlaceholder}
                                 placeholderTextColor="#64748b"
-                                value={name}
-                                onChangeText={setName}
+                                keyboardType="phone-pad"
+                                value={phone}
+                                onChangeText={setPhone}
+                                maxLength={14}
                             />
                         </View>
-
-                        <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Numéro de carte (Visa / Mastercard)</Text>
-                        <View style={styles.inputBox}>
-                            <TextInput
-                                style={styles.fieldInput}
-                                placeholder="4532 •••• •••• 8910"
-                                placeholderTextColor="#64748b"
-                                keyboardType="number-pad"
-                                value={cardNumber}
-                                onChangeText={setCardNumber}
-                                maxLength={19}
-                            />
-                        </View>
-
-                        <View style={styles.cardRow}>
-                            <View style={{ flex: 1, marginRight: 10 }}>
-                                <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Date d'exp.</Text>
-                                <View style={styles.inputBox}>
-                                    <TextInput
-                                        style={styles.fieldInput}
-                                        placeholder="MM/AA"
-                                        placeholderTextColor="#64748b"
-                                        value={cardExpiry}
-                                        onChangeText={setCardExpiry}
-                                        maxLength={5}
-                                    />
-                                </View>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.fieldLabel, { marginTop: 14 }]}>CVC / CVV</Text>
-                                <View style={styles.inputBox}>
-                                    <TextInput
-                                        style={styles.fieldInput}
-                                        placeholder="123"
-                                        placeholderTextColor="#64748b"
-                                        keyboardType="number-pad"
-                                        secureTextEntry
-                                        value={cardCvc}
-                                        onChangeText={setCardCvc}
-                                        maxLength={4}
-                                    />
-                                </View>
-                            </View>
-                        </View>
+                        <Text style={styles.helpText}>
+                            Une demande PayDunya sera envoyée sur votre mobile. L’accès sera ouvert uniquement après confirmation du paiement.
+                        </Text>
                     </View>
-                )}
+                </View>
 
                 {errorMessage && (
                     <View style={styles.errorBox}>
@@ -558,7 +467,6 @@ export const QuickPaymentScreen: React.FC = () => {
                 </TouchableOpacity>
             </ScrollView>
 
-            {/* MODAL 1 : EN ATTENTE DE VALIDATION DU CODE PIN SUR LE TÉLÉPHONE */}
             <Modal
                 visible={waitingForPayment}
                 transparent
@@ -573,7 +481,7 @@ export const QuickPaymentScreen: React.FC = () => {
 
                         <Text style={styles.modalTitle}>Validation sur votre Mobile</Text>
                         <Text style={styles.modalSub}>
-                            Une demande de <Text style={{ fontWeight: '800', color: '#ffffff' }}>{priceFCFA.toLocaleString('fr-FR')} FCFA</Text> ({selectedOperator?.name}) a été transmise à votre numéro.
+                            Une demande de <Text style={{ fontWeight: '800', color: '#ffffff' }}>{priceFCFA.toLocaleString('fr-FR')} FCFA</Text> est en attente. Validez-la sur le téléphone utilisé pour le paiement.
                         </Text>
                         <Text style={[styles.modalSub, { marginTop: 6, color: '#a78bfa' }]}>
                             Confirmez avec votre code PIN secret sur votre téléphone pour finaliser l'opération.
@@ -586,9 +494,13 @@ export const QuickPaymentScreen: React.FC = () => {
                             </Text>
                         </View>
 
+                        {errorMessage && (
+                            <Text style={styles.errorText}>{errorMessage}</Text>
+                        )}
+
                         <TouchableOpacity
                             style={styles.directAccessButton}
-                            onPress={() => checkPaymentConfirmation()}
+                            onPress={() => checkPaymentConfirmation(currentInvoiceToken ?? undefined, currentOrderId ?? undefined)}
                             activeOpacity={0.85}
                             disabled={verifying}
                         >
@@ -608,58 +520,6 @@ export const QuickPaymentScreen: React.FC = () => {
                             <Text style={{ color: '#94a3b8', fontSize: 13, textDecorationLine: 'underline' }}>
                                 Annuler ou changer de numéro
                             </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* MODAL 2 : PAIEMENT CONFIRMÉ ET REMISE DU CODE (RETOUR À L'ACCUEIL SANS REDIRECTION AUTO) */}
-            <Modal
-                visible={showSuccessModal}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowSuccessModal(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalIconRing}>
-                            <Feather name="check" size={32} color="#10b981" />
-                        </View>
-
-                        <Text style={styles.modalTitle}>Paiement Confirmé avec Succès !</Text>
-                        <Text style={styles.modalSub}>
-                            Votre transaction a été validée. Conservez précieusement votre code d'accès personnel :
-                        </Text>
-
-                        {/* Grand affichage du code */}
-                        <View style={styles.codeRevealBox}>
-                            <Text style={styles.codeRevealText}>{generatedCode}</Text>
-                        </View>
-
-                        <TouchableOpacity
-                            style={styles.copyButton}
-                            onPress={handleCopyCode}
-                            activeOpacity={0.8}
-                        >
-                            <Feather name={copied ? 'check' : 'copy'} size={16} color="#a78bfa" />
-                            <Text style={styles.copyButtonText}>
-                                {copied ? 'Code copié dans le presse-papier !' : 'Copier mon code'}
-                            </Text>
-                        </TouchableOpacity>
-
-                        {/* Bouton pour retourner sur l'accueil taper le code (pas de redirection auto) */}
-                        <TouchableOpacity
-                            style={styles.directAccessButton}
-                            onPress={handleReturnToGate}
-                            activeOpacity={0.85}
-                        >
-                            <LinearGradient
-                                colors={['#8b5cf6', '#6366f1']}
-                                style={styles.directAccessGradient}
-                            >
-                                <Feather name="arrow-left" size={18} color="#ffffff" />
-                                <Text style={styles.directAccessText}>Retourner à l'accueil pour entrer mon code</Text>
-                            </LinearGradient>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -789,37 +649,6 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
         fontSize: 12,
     },
-    tabContainer: {
-        flexDirection: 'row',
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-        borderRadius: 12,
-        padding: 4,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.08)',
-        gap: 6,
-    },
-    tabButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 10,
-        borderRadius: 8,
-    },
-    tabButtonActive: {
-        backgroundColor: '#8b5cf6',
-    },
-    tabButtonText: {
-        color: '#94a3b8',
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    tabButtonTextActive: {
-        color: '#ffffff',
-        fontWeight: '700',
-    },
     sectionTitle: {
         fontSize: 14,
         fontWeight: '700',
@@ -947,9 +776,6 @@ const styles = StyleSheet.create({
         marginTop: 6,
         lineHeight: 16,
     },
-    cardRow: {
-        flexDirection: 'row',
-    },
     errorBox: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1046,36 +872,6 @@ const styles = StyleSheet.create({
     waitingStatusText: {
         color: '#eab308',
         fontSize: 12,
-        fontWeight: '600',
-    },
-    codeRevealBox: {
-        backgroundColor: 'rgba(139, 92, 246, 0.15)',
-        borderWidth: 2,
-        borderColor: '#8b5cf6',
-        borderRadius: 14,
-        paddingVertical: 14,
-        paddingHorizontal: 28,
-        marginVertical: 18,
-    },
-    codeRevealText: {
-        color: '#ffffff',
-        fontSize: 26,
-        fontWeight: '900',
-        letterSpacing: 4,
-    },
-    copyButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        backgroundColor: 'rgba(139, 92, 246, 0.12)',
-        borderRadius: 10,
-        marginBottom: 20,
-    },
-    copyButtonText: {
-        color: '#c4b5fd',
-        fontSize: 13,
         fontWeight: '600',
     },
     directAccessButton: {

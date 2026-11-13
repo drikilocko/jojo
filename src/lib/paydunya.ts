@@ -11,6 +11,8 @@ export interface PayDunyaInvoiceResult {
     error?: string;
 }
 
+export type PayDunyaPurchaseType = 'subscription';
+
 /**
  * Appel direct via fetch() vers la fonction Edge Supabase.
  * Evite les problemes de SDK (FunctionsFetchError) en mode web.
@@ -57,7 +59,12 @@ export async function initiatePayDunyaPayment(
     orderId: string,
     operatorKey: string,
     paymentPhone: string,
-    extra?: { amountXOF?: number; customerName?: string; customerEmail?: string }
+    extra?: {
+        amountXOF?: number;
+        customerName?: string;
+        customerEmail?: string;
+        purchaseType?: PayDunyaPurchaseType;
+    }
 ): Promise<PayDunyaInvoiceResult> {
     const body = { orderId, operatorKey, paymentPhone, ...extra };
     const { data, error } = await callEdgeFunction('paydunya-checkout', body);
@@ -81,14 +88,27 @@ export async function initiatePayDunyaPayment(
     };
 }
 
-export async function checkPayDunyaPaymentStatus(token: string): Promise<{ success: boolean; status?: 'completed' | 'pending' | 'cancelled' | string; error?: string }> {
-    const { data, error } = await callEdgeFunction('paydunya-checkout', { action: 'check-status', token });
+export async function checkPayDunyaPaymentStatus(
+    token: string,
+    orderId: string,
+    purchaseType: PayDunyaPurchaseType
+): Promise<{ success: boolean; status?: string; error?: string }> {
+    const { data, error } = await callEdgeFunction('paydunya-checkout', {
+        action: 'check-status',
+        token,
+        orderId,
+        purchaseType,
+    });
 
     if (error) {
         return { success: false, error };
     }
 
-    return { success: true, status: data?.status as string | undefined };
+    if (typeof data?.status !== 'string') {
+        return { success: false, error: 'Le service de paiement a renvoyé un statut invalide.' };
+    }
+
+    return { success: true, status: data.status };
 }
 
 export function isValidTogoMobileNumber(phone: string): boolean {

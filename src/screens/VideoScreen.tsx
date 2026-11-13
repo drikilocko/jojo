@@ -9,15 +9,13 @@ import {
     Platform,
     useWindowDimensions,
     ImageBackground,
+    ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ACCESS_CODE_STORAGE_KEY } from './GateScreen';
+import { getPaidAccessExpiry } from '../lib/access';
 import { VIDEO_BG_IMAGE } from '../data/media';
-
-export const ACCESS_EXPIRY_STORAGE_KEY = '@zone-de-papy/access-expiry';
 
 interface VideoItem {
     id: string;
@@ -44,31 +42,28 @@ export const VideoScreen: React.FC = () => {
     const { width } = useWindowDimensions();
 
     const [daysLeft, setDaysLeft] = useState<number>(30);
-    const [isExpired, setIsExpired] = useState(false);
+    const [isExpired, setIsExpired] = useState(true);
+    const [accessChecked, setAccessChecked] = useState(false);
 
-    // Calcul de la validité de l'abonnement mensuel (30 jours)
     useEffect(() => {
-        const checkExpiry = async () => {
-            const expiryRaw = await AsyncStorage.getItem(ACCESS_EXPIRY_STORAGE_KEY);
-            const now = Date.now();
+        let mounted = true;
+        getPaidAccessExpiry()
+            .then((expiry) => {
+                if (!mounted || expiry === null) return;
+                setDaysLeft(Math.ceil((expiry - Date.now()) / (1000 * 60 * 60 * 24)));
+                setIsExpired(false);
+            })
+            .catch((accessError: unknown) => {
+                console.error('Unable to verify saved PayDunya access.', accessError);
+                if (mounted) setIsExpired(true);
+            })
+            .finally(() => {
+                if (mounted) setAccessChecked(true);
+            });
 
-            if (expiryRaw) {
-                const expiryTimestamp = parseInt(expiryRaw, 10);
-                const diffMs = expiryTimestamp - now;
-                if (diffMs <= 0) {
-                    setIsExpired(true);
-                    return;
-                }
-                setDaysLeft(Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-            } else {
-                // Initialiser par défaut à 30 jours (abonnement mensuel)
-                const defaultExpiry = now + 30 * 24 * 60 * 60 * 1000;
-                await AsyncStorage.setItem(ACCESS_EXPIRY_STORAGE_KEY, defaultExpiry.toString());
-                setDaysLeft(30);
-            }
+        return () => {
+            mounted = false;
         };
-
-        checkExpiry();
     }, []);
 
     // Format mm:ss
@@ -81,6 +76,14 @@ export const VideoScreen: React.FC = () => {
     // Responsive grid 3 colonnes
     const isMobile = width < 768;
     const cardWidth = isMobile ? '31%' : '31.5%';
+
+    if (!accessChecked) {
+        return (
+            <View style={styles.expiredContainer}>
+                <ActivityIndicator size="large" color="#a78bfa" />
+            </View>
+        );
+    }
 
     if (isExpired) {
         return (
