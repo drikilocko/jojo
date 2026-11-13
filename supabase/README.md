@@ -22,7 +22,9 @@ The app calls the `paydunya-checkout` Edge Function instead of calling PayDunya 
 supabase functions deploy paydunya-checkout --no-verify-jwt
 ```
 
-VIP access does not require Google sign-in or an access code. The app grants the 30-day pass only after the Edge Function confirms a completed PayDunya subscription invoice for the fixed 30,500 XOF amount. The VIP checkout currently offers mobile money; do not re-enable a client-side simulated card payment.
+VIP access can be activated with a one-use access code or by paying for a subscription. The three initial codes are stored as hashes in `access-codes.sql`; run that file once in the Supabase SQL Editor after `schema.sql`. Each code grants 30 days from first activation and is locked to the first app installation that redeems it. After PayDunya confirms a completed 30,500 XOF subscription payment, the Edge Function creates a new code and the app activates it on the current installation. The app displays the code with copy and download/share actions. The VIP checkout currently offers mobile money; do not re-enable a client-side simulated card payment.
+
+After applying the schema, redeploy `paydunya-checkout`. Supabase supplies `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions; the function uses these server-side credentials to issue codes. Never expose the service-role key in the app.
 
 In the Supabase Dashboard, open **Edge Functions → Secrets** and set `PAYDUNYA_MASTER_KEY`, `PAYDUNYA_TOKEN`, and `PAYDUNYA_PRIVATE_KEY` using the credentials with those exact names from the same PayDunya application and mode. A PayDunya Public Key is not a substitute for the Master Key required by the Checkout Invoice API. These credentials must not use an `EXPO_PUBLIC_` prefix or be included in the app bundle. Remove any PayDunya credentials from `.env.local` after moving them to Supabase. Since the old implementation exposed payment credentials in client code, rotate those credentials before adding them as Edge Function secrets.
 

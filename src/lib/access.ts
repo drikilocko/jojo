@@ -1,9 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
 export const ACCESS_EXPIRY_STORAGE_KEY = '@zone-de-papy/paydunya-access-expiry-v1';
 export const ACCESS_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 const PENDING_INVOICE_TOKEN_KEY = '@zone-de-papy/pending-invoice-token-v1';
 const PENDING_ORDER_ID_KEY = '@zone-de-papy/pending-order-id-v1';
+const INSTALLATION_ID_KEY = '@zone-de-papy/access-code-installation-id-v1';
+const LAST_ISSUED_ACCESS_CODE_KEY = '@zone-de-papy/last-issued-access-code-v1';
+
+export interface SavedAccessCode {
+    code: string;
+    expiresAt: number;
+}
 
 export interface PendingPayDunyaPayment {
     token: string;
@@ -41,8 +49,72 @@ export async function getPaidAccessExpiry(): Promise<number | null> {
     return expiry > Date.now() ? expiry : null;
 }
 
-export async function grantPaidAccess(): Promise<number> {
-    const expiry = Date.now() + ACCESS_DURATION_MS;
+export async function grantPaidAccess(expiry = Date.now() + ACCESS_DURATION_MS): Promise<number> {
+    if (!Number.isSafeInteger(expiry) || expiry <= Date.now()) {
+        throw new Error('The access code has expired or has an invalid expiry date.');
+    }
+
     await AsyncStorage.setItem(ACCESS_EXPIRY_STORAGE_KEY, String(expiry));
     return expiry;
+}
+
+export async function redeemAccessCode(code: string): Promise<number | null> {
+    const installationId = await getInstallationId();
+    const { data, error } = await supabase.rpc('redeem_vip_access_code', {
+        p_code: code.trim(),
+        p_installation_id: installationId,
+    });
+
+    if (error) throw error;
+    if (typeof data !== 'string') return null;
+
+    const expiry = Date.parse(data);
+    if (!Number.isSafeInteger(expiry) || expiry <= Date.now()) return null;
+
+    await grantPaidAccess(expiry);
+    return expiry;
+}
+
+export async function saveIssuedAccessCode(code: string, expiresAt: number): Promise<void> {
+    await AsyncStorage.setItem(
+        LAST_ISSUED_ACCESS_CODE_KEY,
+        JSON.stringify({ code, expiresAt } satisfies SavedAccessCode)
+    );
+}
+
+export async function getLastIssuedAccessCode(): Promise<SavedAccessCode | null> {
+    const storedCode = await AsyncStorage.getItem(LAST_ISSUED_ACCESS_CODE_KEY);
+    if (!storedCode) return null;
+
+    try {
+        const savedCode = JSON.parse(storedCode) as Partial<SavedAccessCode>;
+        const expiresAt = savedCode.expiresAt;
+        if (
+            typeof savedCode.code === 'string'
+            && typeof expiresAt === 'number'
+            && Number.isSafeInteger(expiresAt)
+            && expiresAt > Date.now()
+        ) {
+            return { code: savedCode.code, expiresAt };
+        }
+    } catch {
+        await AsyncStorage.removeItem(LAST_ISSUED_ACCESS_CODE_KEY);
+        return null;
+    }
+
+    await AsyncStorage.removeItem(LAST_ISSUED_ACCESS_CODE_KEY);
+    return null;
+}
+
+async function getInstallationId(): Promise<string> {
+    const savedId = await AsyncStorage.getItem(INSTALLATION_ID_KEY);
+    if (savedId && savedId.length >= 20 && savedId.length <= 100) return savedId;
+
+    const installationId = [
+        Date.now().toString(36),
+        Math.random().toString(36).slice(2),
+        Math.random().toString(36).slice(2),
+    ].join('-');
+    await AsyncStorage.setItem(INSTALLATION_ID_KEY, installationId);
+    return installationId;
 }

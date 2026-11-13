@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
+    TextInput,
     TouchableOpacity,
     StyleSheet,
     ImageBackground,
@@ -15,7 +16,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
-import { getPaidAccessExpiry, getPendingPayDunyaPayment } from '../lib/access';
+import {
+    getLastIssuedAccessCode,
+    getPaidAccessExpiry,
+    getPendingPayDunyaPayment,
+    redeemAccessCode,
+    SavedAccessCode,
+} from '../lib/access';
+import { copyAccessCode, downloadAccessCode } from '../lib/accessCodeFiles';
 import { GATE_BG_IMAGE } from '../data/media';
 
 const { height } = Dimensions.get('window');
@@ -26,14 +34,18 @@ export const GateScreen: React.FC = () => {
     const [hasPaidAccess, setHasPaidAccess] = useState(false);
     const [hasPendingPayment, setHasPendingPayment] = useState(false);
     const [checkingAccess, setCheckingAccess] = useState(true);
+    const [accessCode, setAccessCode] = useState('');
+    const [redeemingCode, setRedeemingCode] = useState(false);
+    const [savedAccessCode, setSavedAccessCode] = useState<SavedAccessCode | null>(null);
 
     useEffect(() => {
         let mounted = true;
-        Promise.all([getPaidAccessExpiry(), getPendingPayDunyaPayment()])
-            .then(([expiry, pendingPayment]) => {
+        Promise.all([getPaidAccessExpiry(), getPendingPayDunyaPayment(), getLastIssuedAccessCode()])
+            .then(([expiry, pendingPayment, savedCode]) => {
                 if (!mounted) return;
                 setHasPaidAccess(expiry !== null);
                 setHasPendingPayment(pendingPayment !== null);
+                setSavedAccessCode(savedCode);
             })
             .catch((accessError: unknown) => {
                 console.error('Unable to verify saved PayDunya access.', accessError);
@@ -51,6 +63,54 @@ export const GateScreen: React.FC = () => {
     const handleAccess = () => {
         setError(null);
         navigateTo(hasPaidAccess ? 'video' : 'quick-payment');
+    };
+
+    const handleRedeemCode = async () => {
+        if (!accessCode.trim()) {
+            setError('Saisissez votre code d’accès.');
+            return;
+        }
+
+        setRedeemingCode(true);
+        setError(null);
+        try {
+            const expiry = await redeemAccessCode(accessCode);
+            if (expiry === null) {
+                setError('Ce code est invalide, expiré ou déjà utilisé sur un autre appareil.');
+                return;
+            }
+
+            setAccessCode('');
+            setHasPaidAccess(true);
+            navigateTo('video');
+        } catch (redemptionError: unknown) {
+            console.error('Unable to redeem the VIP access code.', redemptionError);
+            setError('Impossible de vérifier le code. Vérifiez votre connexion et réessayez.');
+        } finally {
+            setRedeemingCode(false);
+        }
+    };
+
+    const handleCopyCode = async () => {
+        if (!savedAccessCode) return;
+        try {
+            await copyAccessCode(savedAccessCode.code);
+            setError('Code copié.');
+        } catch (copyError: unknown) {
+            console.error('Unable to copy the VIP access code.', copyError);
+            setError('Impossible de copier le code.');
+        }
+    };
+
+    const handleDownloadCode = async () => {
+        if (!savedAccessCode) return;
+        try {
+            await downloadAccessCode(savedAccessCode.code);
+            setError(null);
+        } catch (downloadError: unknown) {
+            console.error('Unable to save the VIP access code.', downloadError);
+            setError('Impossible de télécharger le code sur cet appareil.');
+        }
     };
 
     return (
@@ -142,6 +202,51 @@ export const GateScreen: React.FC = () => {
                                         )}
                                     </View>
                                 </TouchableOpacity>
+
+                                {savedAccessCode && (
+                                    <View style={styles.savedCodeCard}>
+                                        <Text style={styles.savedCodeLabel}>Votre code d’accès</Text>
+                                        <Text selectable style={styles.savedCodeValue}>{savedAccessCode.code}</Text>
+                                        <Text style={styles.savedCodeExpiry}>
+                                            Valable jusqu’au {new Date(savedAccessCode.expiresAt).toLocaleDateString('fr-FR')}
+                                        </Text>
+                                        <View style={styles.codeActions}>
+                                            <TouchableOpacity style={styles.codeActionButton} onPress={handleCopyCode}>
+                                                <Feather name="copy" size={14} color="#ffffff" />
+                                                <Text style={styles.codeActionText}>Copier</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={styles.codeActionButton} onPress={handleDownloadCode}>
+                                                <Feather name="download" size={14} color="#ffffff" />
+                                                <Text style={styles.codeActionText}>Télécharger</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+
+                                <View style={styles.codeEntry}>
+                                    <Text style={styles.codeEntryLabel}>Vous avez un code d’accès ?</Text>
+                                    <TextInput
+                                        style={styles.codeInput}
+                                        value={accessCode}
+                                        onChangeText={setAccessCode}
+                                        placeholder="Saisissez votre code"
+                                        placeholderTextColor="#64748b"
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        editable={!redeemingCode}
+                                        returnKeyType="done"
+                                        onSubmitEditing={handleRedeemCode}
+                                    />
+                                    <TouchableOpacity
+                                        style={[styles.redeemButton, redeemingCode && styles.redeemButtonDisabled]}
+                                        onPress={handleRedeemCode}
+                                        disabled={redeemingCode}
+                                    >
+                                        {redeemingCode
+                                            ? <ActivityIndicator size="small" color="#ffffff" />
+                                            : <Text style={styles.redeemButtonText}>Activer mon code</Text>}
+                                    </TouchableOpacity>
+                                </View>
 
                                 {error && (
                                     <View style={styles.errorBox}>
@@ -257,6 +362,88 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '500',
         marginBottom: 12,
+    },
+    savedCodeCard: {
+        width: '100%',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderColor: 'rgba(16, 185, 129, 0.35)',
+        borderWidth: 1,
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 16,
+        alignItems: 'center',
+    },
+    savedCodeLabel: {
+        color: '#a7f3d0',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    savedCodeValue: {
+        color: '#ffffff',
+        fontSize: 20,
+        fontWeight: '800',
+        letterSpacing: 1,
+        marginTop: 6,
+    },
+    savedCodeExpiry: {
+        color: '#94a3b8',
+        fontSize: 11,
+        marginTop: 4,
+    },
+    codeActions: {
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 12,
+    },
+    codeActionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: 'rgba(139, 92, 246, 0.7)',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    codeActionText: {
+        color: '#ffffff',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    codeEntry: {
+        width: '100%',
+        marginTop: 18,
+        marginBottom: 14,
+    },
+    codeEntryLabel: {
+        color: '#cbd5e1',
+        fontSize: 13,
+        fontWeight: '600',
+        marginBottom: 8,
+    },
+    codeInput: {
+        color: '#ffffff',
+        backgroundColor: 'rgba(15, 23, 42, 0.8)',
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 11,
+        fontSize: 14,
+    },
+    redeemButton: {
+        alignItems: 'center',
+        backgroundColor: '#6366f1',
+        borderRadius: 10,
+        paddingVertical: 11,
+        marginTop: 8,
+    },
+    redeemButtonDisabled: {
+        opacity: 0.6,
+    },
+    redeemButtonText: {
+        color: '#ffffff',
+        fontSize: 13,
+        fontWeight: '700',
     },
     buyCodeButton: {
         width: '100%',

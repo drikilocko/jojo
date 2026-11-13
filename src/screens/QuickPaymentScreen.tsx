@@ -19,9 +19,11 @@ import { initiatePayDunyaPayment, checkPayDunyaPaymentStatus } from '../lib/payd
 import {
     clearPendingPayDunyaPayment,
     getPendingPayDunyaPayment,
-    grantPaidAccess,
+    redeemAccessCode,
     savePendingPayDunyaPayment,
+    saveIssuedAccessCode,
 } from '../lib/access';
+import { copyAccessCode, downloadAccessCode } from '../lib/accessCodeFiles';
 import { PAYMENT_BG_IMAGE } from '../data/media';
 
 interface CountryConfig {
@@ -146,6 +148,9 @@ export const QuickPaymentScreen: React.FC = () => {
     const [currentInvoiceToken, setCurrentInvoiceToken] = useState<string | null>(null);
     const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
     const [verifying, setVerifying] = useState(false);
+    const [issuedAccessCode, setIssuedAccessCode] = useState<string | null>(null);
+    const [issuedAccessExpiry, setIssuedAccessExpiry] = useState<number | null>(null);
+    const [codeFeedback, setCodeFeedback] = useState<string | null>(null);
     const verificationInProgress = useRef(false);
 
     const currentCountry = COUNTRIES.find((c) => c.id === selectedCountryId) || COUNTRIES[0];
@@ -179,12 +184,25 @@ export const QuickPaymentScreen: React.FC = () => {
         setErrorMessage(null);
     };
 
-    const grantAccess = async () => {
-        await grantPaidAccess();
+    const grantAccess = async (code: string, expiresAt: string) => {
+        const expectedExpiry = Date.parse(expiresAt);
+        if (!Number.isSafeInteger(expectedExpiry) || expectedExpiry <= Date.now()) {
+            throw new Error('Le code reçu est expiré ou sa date de validité est invalide.');
+        }
+
+        const redeemedExpiry = await redeemAccessCode(code);
+        if (redeemedExpiry === null) {
+            throw new Error('Le paiement est confirmé, mais le code n’a pas pu être activé sur cet appareil.');
+        }
+
+        await saveIssuedAccessCode(code, redeemedExpiry);
         await clearPendingPayDunyaPayment();
         setWaitingForPayment(false);
         setCurrentInvoiceToken(null);
         setCurrentOrderId(null);
+        setIssuedAccessCode(code);
+        setIssuedAccessExpiry(redeemedExpiry);
+        setCodeFeedback(null);
     };
 
     const checkPaymentConfirmation = async (tokenToCheck?: string, orderIdToCheck?: string) => {
@@ -194,7 +212,6 @@ export const QuickPaymentScreen: React.FC = () => {
 
         verificationInProgress.current = true;
         setVerifying(true);
-        let paymentCompleted = false;
         try {
             const res = await checkPayDunyaPaymentStatus(token, orderId, 'subscription');
             if (!res.success) {
@@ -204,8 +221,11 @@ export const QuickPaymentScreen: React.FC = () => {
 
             setErrorMessage(null);
             if (res.status === 'completed') {
-                await grantAccess();
-                paymentCompleted = true;
+                if (!res.accessCode || !res.expiresAt) {
+                    setErrorMessage('Le paiement est confirmé, mais le code d’accès n’a pas été retourné.');
+                    return;
+                }
+                await grantAccess(res.accessCode, res.expiresAt);
             } else if (res.status === 'cancelled' || res.status === 'failed') {
                 await clearPendingPayDunyaPayment();
                 setWaitingForPayment(false);
@@ -221,7 +241,6 @@ export const QuickPaymentScreen: React.FC = () => {
             verificationInProgress.current = false;
             setVerifying(false);
         }
-        if (paymentCompleted) navigateTo('video');
     };
 
     // Polling automatique toutes les 4 secondes pendant que l'utilisateur valide son code PIN
@@ -283,6 +302,28 @@ export const QuickPaymentScreen: React.FC = () => {
                 : 'Une erreur est survenue lors de l\'initiation du paiement.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCopyIssuedCode = async () => {
+        if (!issuedAccessCode) return;
+        try {
+            await copyAccessCode(issuedAccessCode);
+            setCodeFeedback('Code copié.');
+        } catch (copyError: unknown) {
+            console.error('Unable to copy the issued VIP access code.', copyError);
+            setCodeFeedback('Impossible de copier le code.');
+        }
+    };
+
+    const handleDownloadIssuedCode = async () => {
+        if (!issuedAccessCode) return;
+        try {
+            await downloadAccessCode(issuedAccessCode);
+            setCodeFeedback('Fichier du code préparé.');
+        } catch (downloadError: unknown) {
+            console.error('Unable to save the issued VIP access code.', downloadError);
+            setCodeFeedback('Impossible de télécharger le code.');
         }
     };
 
@@ -520,6 +561,49 @@ export const QuickPaymentScreen: React.FC = () => {
                             <Text style={{ color: '#94a3b8', fontSize: 13, textDecorationLine: 'underline' }}>
                                 Annuler ou changer de numéro
                             </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={issuedAccessCode !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => navigateTo('video')}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.issuedCodeIcon}>
+                            <Feather name="check" size={30} color="#34d399" />
+                        </View>
+                        <Text style={styles.modalTitle}>Paiement confirmé !</Text>
+                        <Text style={styles.modalSub}>
+                            Votre code d’accès personnel est activé sur cet appareil.
+                        </Text>
+                        <Text selectable style={styles.issuedCodeValue}>{issuedAccessCode}</Text>
+                        {issuedAccessExpiry !== null && (
+                            <Text style={styles.issuedCodeExpiry}>
+                                Valable jusqu’au {new Date(issuedAccessExpiry).toLocaleDateString('fr-FR')}
+                            </Text>
+                        )}
+                        <View style={styles.issuedCodeActions}>
+                            <TouchableOpacity style={styles.issuedCodeAction} onPress={handleCopyIssuedCode}>
+                                <Feather name="copy" size={16} color="#ffffff" />
+                                <Text style={styles.issuedCodeActionText}>Copier</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.issuedCodeAction} onPress={handleDownloadIssuedCode}>
+                                <Feather name="download" size={16} color="#ffffff" />
+                                <Text style={styles.issuedCodeActionText}>Télécharger</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {codeFeedback && <Text style={styles.codeFeedback}>{codeFeedback}</Text>}
+                        <TouchableOpacity
+                            style={styles.continueButton}
+                            onPress={() => navigateTo('video')}
+                        >
+                            <Text style={styles.continueButtonText}>Accéder aux vidéos</Text>
+                            <Feather name="arrow-right" size={18} color="#ffffff" />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -842,6 +926,69 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 16,
+    },
+    issuedCodeIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+        borderWidth: 1,
+        borderColor: 'rgba(16, 185, 129, 0.35)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    issuedCodeValue: {
+        color: '#ffffff',
+        fontSize: 22,
+        fontWeight: '800',
+        letterSpacing: 1,
+        marginTop: 16,
+    },
+    issuedCodeExpiry: {
+        color: '#94a3b8',
+        fontSize: 12,
+        marginTop: 6,
+    },
+    issuedCodeActions: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 18,
+    },
+    issuedCodeAction: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 7,
+        backgroundColor: '#4f46e5',
+        borderRadius: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+    },
+    issuedCodeActionText: {
+        color: '#ffffff',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    codeFeedback: {
+        color: '#a7f3d0',
+        fontSize: 12,
+        marginTop: 12,
+    },
+    continueButton: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#059669',
+        borderRadius: 12,
+        paddingVertical: 13,
+        marginTop: 20,
+    },
+    continueButtonText: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '700',
     },
     modalTitle: {
         fontSize: 18,

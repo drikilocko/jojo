@@ -144,3 +144,138 @@ $$;
 
 revoke all on function public.save_shipping_address(jsonb) from public, anon;
 grant execute on function public.save_shipping_address(jsonb) to authenticated;
+
+create extension if not exists pgcrypto with schema extensions;
+
+create table if not exists public.vip_access_codes (
+    code_hash text primary key check (code_hash ~ '^[0-9a-f]{64}$'),
+    code_value text,
+    payment_order_id text unique,
+    expires_at timestamptz,
+    validity interval not null default interval '30 days',
+    redeemed_installation_id text,
+    redeemed_at timestamptz,
+    created_at timestamptz not null default now(),
+    check ((payment_order_id is null) = (code_value is null))
+);
+
+alter table public.vip_access_codes enable row level security;
+revoke all on table public.vip_access_codes from public, anon, authenticated;
+grant select, insert, update on table public.vip_access_codes to service_role;
+
+create or replace function public.redeem_vip_access_code(
+    p_code text,
+    p_installation_id text
+)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    access_expiry timestamptz;
+begin
+    if p_code is null
+        or pg_catalog.length(pg_catalog.btrim(p_code)) < 6
+        or pg_catalog.length(pg_catalog.btrim(p_code)) > 80
+        or p_installation_id is null
+        or length(p_installation_id) < 20
+        or length(p_installation_id) > 100 then
+        return null;
+    end if;
+
+    update public.vip_access_codes
+    set redeemed_installation_id = coalesce(redeemed_installation_id, p_installation_id),
+        redeemed_at = coalesce(redeemed_at, pg_catalog.now()),
+        expires_at = coalesce(expires_at, pg_catalog.now() + validity)
+    where code_hash = pg_catalog.encode(
+            extensions.digest(pg_catalog.lower(pg_catalog.btrim(p_code)), 'sha256'),
+            'hex'
+        )
+        and (
+            redeemed_installation_id is null
+            or (
+                redeemed_installation_id = p_installation_id
+                and expires_at > pg_catalog.now()
+            )
+        )
+    returning expires_at into access_expiry;
+
+    return access_expiry;
+end;
+$$;
+
+revoke all on function public.redeem_vip_access_code(text, text) from public;
+grant execute on function public.redeem_vip_access_code(text, text) to anon, authenticated;
+
+create or replace function public.issue_vip_access_code(p_order_id text)
+returns table (code text, expires_at timestamptz)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    generated_code text;
+    generated_token text;
+    generated_expiry timestamptz;
+begin
+    if p_order_id is null or p_order_id !~ '^PASS-[0-9]+$' then
+        raise exception 'Invalid subscription order id';
+    end if;
+
+    select vip_access_codes.code_value, vip_access_codes.expires_at
+    into generated_code, generated_expiry
+    from public.vip_access_codes
+    where vip_access_codes.payment_order_id = p_order_id;
+
+    if found then
+        return query select generated_code, generated_expiry;
+        return;
+    end if;
+
+    loop
+        generated_token := pg_catalog.translate(
+            pg_catalog.encode(extensions.gen_random_bytes(9), 'base64'),
+            '+/',
+            '-_'
+        );
+        generated_code := pg_catalog.substr(generated_token, 1, 6)
+            || '-' || pg_catalog.substr(generated_token, 7, 6);
+        generated_expiry := pg_catalog.now() + interval '30 days';
+
+        begin
+            insert into public.vip_access_codes (
+                code_hash,
+                code_value,
+                payment_order_id,
+                expires_at
+            )
+            values (
+                pg_catalog.encode(
+                    extensions.digest(pg_catalog.lower(generated_code), 'sha256'),
+                    'hex'
+                ),
+                generated_code,
+                p_order_id,
+                generated_expiry
+            );
+
+            return query select generated_code, generated_expiry;
+            return;
+        exception when unique_violation then
+            select vip_access_codes.code_value, vip_access_codes.expires_at
+            into generated_code, generated_expiry
+            from public.vip_access_codes
+            where vip_access_codes.payment_order_id = p_order_id;
+
+            if found then
+                return query select generated_code, generated_expiry;
+                return;
+            end if;
+        end;
+    end loop;
+end;
+$$;
+
+revoke all on function public.issue_vip_access_code(text) from public, anon, authenticated;
+grant execute on function public.issue_vip_access_code(text) to service_role;

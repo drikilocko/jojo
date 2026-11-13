@@ -92,7 +92,13 @@ export async function checkPayDunyaPaymentStatus(
     token: string,
     orderId: string,
     purchaseType: PayDunyaPurchaseType
-): Promise<{ success: boolean; status?: string; error?: string }> {
+): Promise<{
+    success: boolean;
+    status?: string;
+    accessCode?: string;
+    expiresAt?: string;
+    error?: string;
+}> {
     const { data, error } = await callEdgeFunction('paydunya-checkout', {
         action: 'check-status',
         token,
@@ -106,6 +112,18 @@ export async function checkPayDunyaPaymentStatus(
 
     if (typeof data?.status !== 'string') {
         return { success: false, error: 'Le service de paiement a renvoyé un statut invalide.' };
+    }
+
+    if (data.status === 'completed' && purchaseType === 'subscription') {
+        if (typeof data.accessCode !== 'string' || typeof data.expiresAt !== 'string') {
+            return { success: false, error: 'Le paiement est confirmé, mais le code d’accès n’a pas été retourné.' };
+        }
+        return {
+            success: true,
+            status: data.status,
+            accessCode: data.accessCode,
+            expiresAt: data.expiresAt,
+        };
     }
 
     return { success: true, status: data.status };

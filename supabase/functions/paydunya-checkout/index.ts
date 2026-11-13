@@ -24,6 +24,30 @@ const corsHeaders = {
 const jsonResp = (body, status) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 const isRec = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
+const issueVipAccessCode = async (orderId) => {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceRoleKey) throw new Error('Supabase service credentials are not configured.');
+
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/rpc/issue_vip_access_code`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            apikey: serviceRoleKey,
+            Authorization: `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({ p_order_id: orderId }),
+    });
+    if (!response.ok) throw new Error(`Code issuance failed with HTTP ${response.status}.`);
+
+    const result = await response.json();
+    const issued = Array.isArray(result) ? result[0] : null;
+    if (!isRec(issued) || typeof issued.code !== 'string' || typeof issued.expires_at !== 'string') {
+        throw new Error('Code issuance returned an invalid response.');
+    }
+
+    return { code: issued.code, expiresAt: issued.expires_at };
+};
 const customDataValue = (customData, key) => {
     if (isRec(customData)) return customData[key];
     if (Array.isArray(customData)) {
@@ -78,6 +102,15 @@ Deno.serve(async (req) => {
 
             const rawStatus = typeof d.status === 'string' ? d.status.toLowerCase() : 'pending';
             const status = ['completed', 'pending', 'cancelled', 'failed'].includes(rawStatus) ? rawStatus : 'pending';
+            if (status === 'completed' && payload.purchaseType === 'subscription') {
+                try {
+                    const access = await issueVipAccessCode(orderId);
+                    return jsonResp({ status, accessCode: access.code, expiresAt: access.expiresAt }, 200);
+                } catch (issueError) {
+                    console.error('Unable to issue the paid VIP access code.', issueError);
+                    return jsonResp({ error: 'Paiement confirmé, mais le code d’accès n’a pas pu être créé. Réessayez la vérification.' }, 503);
+                }
+            }
             return jsonResp({ status }, 200);
         } catch {
             return jsonResp({ error: 'Impossible de verifier le statut.' }, 502);
