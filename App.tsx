@@ -1,54 +1,84 @@
-﻿import React, { useState, useEffect } from "react";
-import { SafeAreaView, StatusBar, StyleSheet, View } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { GateScreen, ACCESS_KEY } from "./src/screens/GateScreen";
-import { PaymentScreen } from "./src/screens/PaymentScreen";
-import { VideoScreen } from "./src/screens/VideoScreen";
+import React from 'react';
+import { SafeAreaView, StatusBar, StyleSheet, View } from 'react-native';
+import { useFonts } from 'expo-font';
+import {
+    Montserrat_400Regular,
+} from '@expo-google-fonts/montserrat/400Regular';
+import {
+    Montserrat_500Medium,
+} from '@expo-google-fonts/montserrat/500Medium';
+import {
+    Montserrat_600SemiBold,
+} from '@expo-google-fonts/montserrat/600SemiBold';
+import {
+    Montserrat_700Bold,
+} from '@expo-google-fonts/montserrat/700Bold';
+import {
+    Montserrat_800ExtraBold,
+} from '@expo-google-fonts/montserrat/800ExtraBold';
+import {
+    Montserrat_900Black,
+} from '@expo-google-fonts/montserrat/900Black';
+import { ShopProvider, useShop } from './src/context/ShopContext';
+import { GateScreen } from './src/screens/GateScreen';
+import { QuickPaymentScreen } from './src/screens/QuickPaymentScreen';
+import { VideoScreen } from './src/screens/VideoScreen';
+import { LanguageProvider } from './src/context/LanguageContext';
 
-type Screen = "gate" | "payment" | "video";
+const MainNavigator: React.FC = () => {
+    const { activeScreen } = useShop();
+
+    const renderScreen = () => {
+        switch (activeScreen) {
+            case 'quick-payment':
+                return <QuickPaymentScreen />;
+            case 'video':
+                return <VideoScreen />;
+            case 'gate':
+            default:
+                return <GateScreen />;
+        }
+    };
+
+    return <View style={styles.appWrapper}>{renderScreen()}</View>;
+};
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("gate");
-
-  useEffect(() => {
-    AsyncStorage.getItem(ACCESS_KEY).then(v => {
-      if (v === "true") setScreen("video");
+    const [fontsLoaded, fontError] = useFonts({
+        Montserrat_400Regular,
+        Montserrat_500Medium,
+        Montserrat_600SemiBold,
+        Montserrat_700Bold,
+        Montserrat_800ExtraBold,
+        Montserrat_900Black,
     });
-  }, []);
 
-  const lock = async () => {
-    await AsyncStorage.removeItem(ACCESS_KEY);
-    setScreen("gate");
-  };
+    if (fontError) {
+        throw fontError;
+    }
 
-  return (
-    <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <View style={s.root}>
-        {screen === "gate" && (
-          <GateScreen
-            onUnlock={() => setScreen("video")}
-            onBuy={() => setScreen("payment")}
-          />
-        )}
-        {screen === "payment" && (
-          <PaymentScreen
-            onBack={() => setScreen("gate")}
-            onSuccess={() => setScreen("video")}
-          />
-        )}
-        {screen === "video" && (
-          <VideoScreen
-            onLock={lock}
-            onRenew={() => setScreen("payment")}
-          />
-        )}
-      </View>
-    </SafeAreaView>
-  );
+    if (!fontsLoaded) {
+        return null;
+    }
+
+    return (
+        <LanguageProvider>
+            <ShopProvider>
+                <SafeAreaView style={styles.safeArea}>
+                    <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+                    <MainNavigator />
+                </SafeAreaView>
+            </ShopProvider>
+        </LanguageProvider>
+    );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#07090f" },
-  root: { flex: 1 },
+const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#07090f',
+    },
+    appWrapper: {
+        flex: 1,
+    },
 });

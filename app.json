@@ -1,10 +1,27 @@
-﻿{
+{
   "expo": {
-    "name": "Jojo Access",
-    "slug": "jojo-access",
+    "name": "Zone de Papy",
+    "slug": "zone-de-papy",
     "version": "1.0.0",
-    "web": { "bundler": "metro", "output": "single" },
-    "platforms": ["web"],
-    "scheme": "jojo"
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
