@@ -102,22 +102,14 @@ export const GateScreen: React.FC = () => {
 
                         {/* SECTION INFÉRIEURE DANS L'OMBRE DU BOTTOM */}
                         <View style={styles.bottomSection}>
-                            {/* Titre & Sous-titre */}
-                            <View style={styles.titleContainer}>
-                                <Text style={styles.mainTitle}>Accès privé</Text>
-                                <Text style={styles.subtitle}>
-                                    Aucun compte Google ni code à saisir. Payez via PayDunya : dès que le paiement est confirmé, l'accès aux vidéos est activé automatiquement.
-                                </Text>
-                            </View>
-
                             <View style={styles.noCodeContainer}>
-                                <Text style={styles.noCodePrompt}>
-                                    {hasPaidAccess
-                                        ? 'Votre abonnement est actif.'
-                                        : hasPendingPayment
-                                            ? 'Un paiement PayDunya est en attente de vérification.'
-                                            : 'Débloquez les vidéos avec votre paiement PayDunya.'}
-                                </Text>
+                                {(hasPaidAccess || hasPendingPayment) && (
+                                    <Text style={styles.noCodePrompt}>
+                                        {hasPaidAccess
+                                            ? 'Votre abonnement est actif.'
+                                            : 'Un paiement PayDunya est en attente de vérification.'}
+                                    </Text>
+                                )}
 
                                 <TouchableOpacity
                                     style={styles.buyCodeButton}
@@ -243,21 +235,6 @@ const styles = StyleSheet.create({
         maxWidth: 480,
         alignSelf: 'center',
         paddingTop: 10,
-    },
-    titleContainer: {
-        marginBottom: 20,
-    },
-    mainTitle: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: '#ffffff',
-        letterSpacing: -0.5,
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 14,
-        color: '#94a3b8',
-        lineHeight: 20,
     },
     errorBox: {
         flexDirection: 'row',
