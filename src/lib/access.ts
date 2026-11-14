@@ -6,7 +6,7 @@ export const ACCESS_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 const PENDING_INVOICE_TOKEN_KEY = '@zone-de-papy/pending-invoice-token-v1';
 const PENDING_ORDER_ID_KEY = '@zone-de-papy/pending-order-id-v1';
 const INSTALLATION_ID_KEY = '@zone-de-papy/access-code-installation-id-v1';
-const LAST_ISSUED_ACCESS_CODE_KEY = '@zone-de-papy/last-issued-access-code-v1';
+const SAVED_ACCESS_CODE_KEY = '@zone-de-papy/last-issued-access-code-v1';
 
 export interface SavedAccessCode {
     code: string;
@@ -49,6 +49,16 @@ export async function getPaidAccessExpiry(): Promise<number | null> {
     return expiry > Date.now() ? expiry : null;
 }
 
+export async function restorePaidAccess(): Promise<number | null> {
+    const savedExpiry = await getPaidAccessExpiry();
+    if (savedExpiry !== null) return savedExpiry;
+
+    const savedAccessCode = await getSavedAccessCode();
+    if (!savedAccessCode) return null;
+
+    return redeemAccessCode(savedAccessCode.code);
+}
+
 export async function grantPaidAccess(expiry = Date.now() + ACCESS_DURATION_MS): Promise<number> {
     if (!Number.isSafeInteger(expiry) || expiry <= Date.now()) {
         throw new Error('The access code has expired or has an invalid expiry date.');
@@ -71,19 +81,18 @@ export async function redeemAccessCode(code: string): Promise<number | null> {
     const expiry = Date.parse(data);
     if (!Number.isSafeInteger(expiry) || expiry <= Date.now()) return null;
 
-    await grantPaidAccess(expiry);
+    await AsyncStorage.multiSet([
+        [ACCESS_EXPIRY_STORAGE_KEY, String(expiry)],
+        [
+            SAVED_ACCESS_CODE_KEY,
+            JSON.stringify({ code: code.trim(), expiresAt: expiry } satisfies SavedAccessCode),
+        ],
+    ]);
     return expiry;
 }
 
-export async function saveIssuedAccessCode(code: string, expiresAt: number): Promise<void> {
-    await AsyncStorage.setItem(
-        LAST_ISSUED_ACCESS_CODE_KEY,
-        JSON.stringify({ code, expiresAt } satisfies SavedAccessCode)
-    );
-}
-
-export async function getLastIssuedAccessCode(): Promise<SavedAccessCode | null> {
-    const storedCode = await AsyncStorage.getItem(LAST_ISSUED_ACCESS_CODE_KEY);
+export async function getSavedAccessCode(): Promise<SavedAccessCode | null> {
+    const storedCode = await AsyncStorage.getItem(SAVED_ACCESS_CODE_KEY);
     if (!storedCode) return null;
 
     try {
@@ -98,11 +107,11 @@ export async function getLastIssuedAccessCode(): Promise<SavedAccessCode | null>
             return { code: savedCode.code, expiresAt };
         }
     } catch {
-        await AsyncStorage.removeItem(LAST_ISSUED_ACCESS_CODE_KEY);
+        await AsyncStorage.removeItem(SAVED_ACCESS_CODE_KEY);
         return null;
     }
 
-    await AsyncStorage.removeItem(LAST_ISSUED_ACCESS_CODE_KEY);
+    await AsyncStorage.removeItem(SAVED_ACCESS_CODE_KEY);
     return null;
 }
 

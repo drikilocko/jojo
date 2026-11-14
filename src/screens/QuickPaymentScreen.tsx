@@ -21,7 +21,6 @@ import {
     getPendingPayDunyaPayment,
     redeemAccessCode,
     savePendingPayDunyaPayment,
-    saveIssuedAccessCode,
 } from '../lib/access';
 import { copyAccessCode, downloadAccessCode } from '../lib/accessCodeFiles';
 import { PAYMENT_BG_IMAGE } from '../data/media';
@@ -195,7 +194,6 @@ export const QuickPaymentScreen: React.FC = () => {
             throw new Error('Le paiement est confirmé, mais le code n’a pas pu être activé sur cet appareil.');
         }
 
-        await saveIssuedAccessCode(code, redeemedExpiry);
         await clearPendingPayDunyaPayment();
         setWaitingForPayment(false);
         setCurrentInvoiceToken(null);

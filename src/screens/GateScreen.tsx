@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useShop } from '../context/ShopContext';
 import {
-    getLastIssuedAccessCode,
+    getSavedAccessCode,
     getPaidAccessExpiry,
     getPendingPayDunyaPayment,
     redeemAccessCode,
@@ -40,7 +40,7 @@ export const GateScreen: React.FC = () => {
 
     useEffect(() => {
         let mounted = true;
-        Promise.all([getPaidAccessExpiry(), getPendingPayDunyaPayment(), getLastIssuedAccessCode()])
+        Promise.all([getPaidAccessExpiry(), getPendingPayDunyaPayment(), getSavedAccessCode()])
             .then(([expiry, pendingPayment, savedCode]) => {
                 if (!mounted) return;
                 setHasPaidAccess(expiry !== null);

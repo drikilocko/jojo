@@ -4,7 +4,7 @@ import { Product, CartItem, FilterState, CurrencyCode, Currency, Order, User } f
 import { PRODUCTS, CATEGORIES, CURRENCIES } from '../data/mockData';
 import { getErrorMessage, isExpiredJwtError, supabase } from '../lib/supabase';
 import { translateText, useLanguage } from './LanguageContext';
-import { getPaidAccessExpiry } from '../lib/access';
+import { restorePaidAccess } from '../lib/access';
 
 type ScreenName = 'shop' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'wishlist' | 'admin' | 'account' | 'explore' | 'gate' | 'quick-payment' | 'video';
 
@@ -168,7 +168,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [activeOrder, setActiveOrder] = useState<Order | null>(null);
 
     useEffect(() => {
-        getPaidAccessExpiry()
+        restorePaidAccess()
             .then((expiry) => {
                 if (expiry !== null) {
                     setIsSiteUnlocked(true);
