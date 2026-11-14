@@ -1,5 +1,5 @@
 // Arrière-plans configurés depuis le dossier video/
-export const GATE_BG_IMAGE = require('../../video/PORTE FEUILLE MAGIQUE GRATUIT WhatsApp _+22996802103 Rituel d\'argent.jpg');
+export const GATE_BG_IMAGE = require('../../video/access-code-background.jpg');
 
 export const PAYMENT_BG_IMAGE = require('../../video/Body.jpg');
 
