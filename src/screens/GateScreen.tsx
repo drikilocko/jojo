@@ -120,6 +120,7 @@ export const GateScreen: React.FC = () => {
             <ImageBackground
                 source={GATE_BG_IMAGE}
                 style={styles.backgroundImage}
+                imageStyle={{ zIndex: 0 }}
                 resizeMode="cover"
             >
                 {/* Dégradé léger en haut pour les icônes de statut */}

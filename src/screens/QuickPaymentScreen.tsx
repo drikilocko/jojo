@@ -335,6 +335,7 @@ export const QuickPaymentScreen: React.FC = () => {
         <ImageBackground
             source={PAYMENT_BG_IMAGE}
             style={styles.container}
+            imageStyle={{ zIndex: 0 }}
             resizeMode="cover"
         >
             <LinearGradient

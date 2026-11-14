@@ -128,6 +128,7 @@ export const VideoScreen: React.FC = () => {
             source={VIDEO_BG_IMAGE}
             blurRadius={Platform.OS === 'web' ? 20 : 25}
             style={styles.container}
+            imageStyle={{ zIndex: 0 }}
             resizeMode="cover"
         >
             <LinearGradient
@@ -140,6 +141,7 @@ export const VideoScreen: React.FC = () => {
                 source={VIDEO_BG_IMAGE}
                 blurRadius={Platform.OS === 'web' ? 14 : 18}
                 style={styles.topBar}
+                imageStyle={{ zIndex: 0 }}
                 resizeMode="cover"
             >
                 <LinearGradient
@@ -257,6 +259,7 @@ export const VideoScreen: React.FC = () => {
                     source={VIDEO_BG_IMAGE}
                     blurRadius={Platform.OS === 'web' ? 14 : 18}
                     style={styles.videoFooter}
+                    imageStyle={{ zIndex: 0 }}
                     resizeMode="cover"
                 >
                     <LinearGradient
