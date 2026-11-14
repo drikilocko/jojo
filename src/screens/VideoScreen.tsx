@@ -5,7 +5,6 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
-    Dimensions,
     Platform,
     useWindowDimensions,
     ImageBackground,
@@ -73,9 +72,11 @@ export const VideoScreen: React.FC = () => {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // Responsive grid 3 colonnes
     const isMobile = width < 768;
-    const cardWidth = isMobile ? '31%' : '31.5%';
+    const columns = width < 560 ? 2 : width < 1050 ? 3 : 4;
+    const gridGap = 12;
+    const gridWidth = Math.max(0, Math.min(width, 1100) - 32);
+    const cardWidth = (gridWidth - gridGap * (columns - 1)) / columns;
 
     if (!accessChecked) {
         return (
@@ -152,8 +153,8 @@ export const VideoScreen: React.FC = () => {
                 {/* Badge Abonnement 50$/mois */}
                 <View style={styles.timerBadge}>
                     <Feather name="check-circle" size={14} color="#34d399" />
-                    <Text style={styles.timerLabel}>Abonnement 50 $ / mois :</Text>
-                    <Text style={styles.timerValue}>{daysLeft}j restants</Text>
+                    {!isMobile && <Text style={styles.timerLabel}>Abonnement 50 $ / mois :</Text>}
+                    <Text style={styles.timerValue}>{isMobile ? `${daysLeft}j` : `${daysLeft}j restants`}</Text>
                 </View>
 
                 {/* Actions */}
@@ -194,7 +195,7 @@ export const VideoScreen: React.FC = () => {
                 </View>
 
                 {/* GRILLE DE 3 COLONNES EN PORTRAIT */}
-                <View style={styles.gridContainer}>
+                <View style={[styles.gridContainer, { columnGap: gridGap }]}>
                     {MOCK_VIDEOS.map((item) => (
                         <View key={item.id} style={[styles.videoCard, { width: cardWidth }]}>
                             {/* Écran portrait vidéo */}
@@ -294,12 +295,15 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#07090f',
+        overflow: 'hidden',
     },
     topBar: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
+        gap: 8,
+        paddingHorizontal: 12,
         paddingTop: Platform.OS === 'ios' ? 52 : 36,
         paddingBottom: 14,
         backgroundColor: 'rgba(15, 23, 42, 0.85)',
@@ -310,6 +314,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        flexShrink: 1,
     },
     statusLiveDot: {
         width: 8,
@@ -322,6 +327,7 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '800',
         letterSpacing: 0.5,
+        flexShrink: 1,
     },
     timerBadge: {
         flexDirection: 'row',
@@ -411,7 +417,6 @@ const styles = StyleSheet.create({
     gridContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-between',
         rowGap: 16,
         marginTop: 10,
     },
