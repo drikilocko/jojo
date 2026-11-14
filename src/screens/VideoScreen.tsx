@@ -165,7 +165,7 @@ export const VideoScreen: React.FC = () => {
                         activeOpacity={0.8}
                     >
                         <Feather name="refresh-cw" size={13} color="#a78bfa" />
-                        {!isMobile && <Text style={styles.addTimeText}>Renouveler</Text>}
+                        <Text style={styles.addTimeText}>{isMobile ? 'Payer' : 'Renouveler'}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity

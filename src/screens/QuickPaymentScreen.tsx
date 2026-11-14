@@ -616,12 +616,15 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#07090f',
+        overflow: 'hidden',
     },
     header: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
+        gap: 8,
+        paddingHorizontal: 14,
         paddingTop: Platform.OS === 'ios' ? 54 : 36,
         paddingBottom: 16,
         backgroundColor: 'rgba(10, 13, 22, 0.7)',
