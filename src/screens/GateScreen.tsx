@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
     View,
-    Text,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
     ImageBackground,
@@ -15,6 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LocalizedText as Text, LocalizedTextInput as TextInput, useLanguage } from '../context/LanguageContext';
 import { useShop } from '../context/ShopContext';
 import {
     getSavedAccessCode,
@@ -30,6 +29,7 @@ const { height } = Dimensions.get('window');
 
 export const GateScreen: React.FC = () => {
     const { navigateTo } = useShop();
+    const { language } = useLanguage();
     const [error, setError] = useState<string | null>(null);
     const [hasPaidAccess, setHasPaidAccess] = useState(false);
     const [hasPendingPayment, setHasPendingPayment] = useState(false);
@@ -208,7 +208,8 @@ export const GateScreen: React.FC = () => {
                                         <Text style={styles.savedCodeLabel}>Votre code d’accès</Text>
                                         <Text selectable style={styles.savedCodeValue}>{savedAccessCode.code}</Text>
                                         <Text style={styles.savedCodeExpiry}>
-                                            Valable jusqu’au {new Date(savedAccessCode.expiresAt).toLocaleDateString('fr-FR')}
+                                            {language === 'en' ? 'Valid until' : 'Valable jusqu’au'}{' '}
+                                            {new Date(savedAccessCode.expiresAt).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR')}
                                         </Text>
                                         <View style={styles.codeActions}>
                                             <TouchableOpacity style={styles.codeActionButton} onPress={handleCopyCode}>

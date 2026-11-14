@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
     View,
-    Text,
     TouchableOpacity,
     StyleSheet,
     ScrollView,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LocalizedText as Text, useLanguage } from '../context/LanguageContext';
 import { useShop } from '../context/ShopContext';
 import { getPaidAccessExpiry } from '../lib/access';
 import { VIDEO_BG_IMAGE } from '../data/media';
@@ -38,6 +38,7 @@ const MOCK_VIDEOS: VideoItem[] = [
 
 export const VideoScreen: React.FC = () => {
     const { navigateTo, lockSite } = useShop();
+    const { language } = useLanguage();
     const { width } = useWindowDimensions();
 
     const [daysLeft, setDaysLeft] = useState<number>(30);
@@ -154,7 +155,11 @@ export const VideoScreen: React.FC = () => {
                 <View style={styles.timerBadge}>
                     <Feather name="check-circle" size={14} color="#34d399" />
                     {!isMobile && <Text style={styles.timerLabel}>Abonnement 50 $ / mois :</Text>}
-                    <Text style={styles.timerValue}>{isMobile ? `${daysLeft}j` : `${daysLeft}j restants`}</Text>
+                    <Text style={styles.timerValue}>
+                        {isMobile
+                            ? `${daysLeft}${language === 'en' ? 'd' : 'j'}`
+                            : language === 'en' ? `${daysLeft} days left` : `${daysLeft}j restants`}
+                    </Text>
                 </View>
 
                 {/* Actions */}

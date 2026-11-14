@@ -7,6 +7,10 @@ import {
     TextInputProps,
     TextProps,
     TextStyle,
+    ActivityIndicator,
+    Modal,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 export type Language = 'en' | 'fr';
@@ -335,6 +339,98 @@ const frenchTranslations: Record<string, string> = {
 };
 
 const englishTranslations: Record<string, string> = {
+    'ESPACE PRIVÉ EXCLUSIF': 'EXCLUSIVE PRIVATE AREA',
+    'Votre abonnement est actif.': 'Your subscription is active.',
+    'Un paiement PayDunya est en attente de vérification.': 'A PayDunya payment is pending verification.',
+    'Vérification de l’accès...': 'Checking access...',
+    'Reprendre mes vidéos': 'Continue watching',
+    'Vérifier mon paiement': 'Check my payment',
+    'Payer et accéder • 50 $ / mois': 'Pay and get access • $50 / month',
+    'Accès 30 jours après confirmation • TMoney, Flooz': '30-day access after payment confirmation • TMoney, Flooz',
+    'Votre code d’accès': 'Your access code',
+    Copier: 'Copy',
+    Télécharger: 'Download',
+    'Vous avez un code d’accès ?': 'Have an access code?',
+    'Saisissez votre code': 'Enter your code',
+    'Activer mon code': 'Activate my code',
+    'Accès Immédiat': 'Instant access',
+    'Impossible de vérifier votre accès enregistré.': 'Unable to verify your saved access.',
+    'Saisissez votre code d’accès.': 'Enter your access code.',
+    'Ce code est invalide, expiré ou déjà utilisé sur un autre appareil.': 'This code is invalid, expired, or already used on another device.',
+    'Impossible de vérifier le code. Vérifiez votre connexion et réessayez.': 'Unable to verify the code. Check your connection and try again.',
+    'Code copié.': 'Code copied.',
+    'Impossible de copier le code.': 'Unable to copy the code.',
+    'Impossible de télécharger le code sur cet appareil.': 'Unable to download the code on this device.',
+    'Impossible de reprendre la vérification du paiement.': 'Unable to resume payment verification.',
+    'Impossible de vérifier le paiement auprès de PayDunya.': 'Unable to verify the payment with PayDunya.',
+    'Le paiement est confirmé, mais le code d’accès n’a pas été retourné.': 'Payment is confirmed, but no access code was returned.',
+    'Le paiement a été annulé sur votre téléphone ou le délai a expiré.': 'The payment was cancelled on your phone or has expired.',
+    'Erreur lors de l’envoi de la demande de paiement PayDunya.': 'Unable to send the PayDunya payment request.',
+    "Erreur lors de l'envoi de la demande de paiement PayDunya.": 'Unable to send the PayDunya payment request.',
+    'PayDunya n’a pas retourné de référence de paiement valide.': 'PayDunya did not return a valid payment reference.',
+    'Une erreur est survenue lors de l’initiation du paiement.': 'An error occurred while starting the payment.',
+    "Une erreur est survenue lors de l'initiation du paiement.": 'An error occurred while starting the payment.',
+    'Fichier du code préparé.': 'Access code file is ready.',
+    'Impossible de télécharger le code.': 'Unable to download the code.',
+    'Retour à l’accueil': 'Back to home',
+    "Retour à l'accueil": 'Back to home',
+    Payer: 'Pay',
+    Renouveler: 'Renew',
+    'Paiement 100% Sécurisé': '100% secure payment',
+    'ABONNEMENT MENSUEL ILLIMITÉ': 'UNLIMITED MONTHLY SUBSCRIPTION',
+    'Accès Intégral aux Vidéos': 'Full access to videos',
+    'Valable 30 jours • Sans engagement': 'Valid for 30 days • No commitment',
+    '/ mois': '/ month',
+    'Soit': 'Only',
+    'FCFA par mois': 'CFA francs per month',
+    '1. Choisissez votre pays': '1. Choose your country',
+    'Sénégal': 'Senegal',
+    'Bénin': 'Benin',
+    "Côte d'Ivoire": 'Côte d’Ivoire',
+    'Wave Sénégal': 'Wave Senegal',
+    '2. Choisissez votre opérateur Mobile Money': '2. Choose your Mobile Money provider',
+    'Votre numéro de téléphone': 'Your phone number',
+    'Une demande PayDunya sera envoyée sur votre mobile. L’accès sera ouvert uniquement après confirmation du paiement.': 'A PayDunya request will be sent to your phone. Access is granted only after payment is confirmed.',
+    'Validation en cours...': 'Processing...',
+    'Payer 50 $': 'Pay $50',
+    'Validation sur votre Mobile': 'Confirm on your phone',
+    'est en attente. Validez-la sur le téléphone utilisé pour le paiement.': 'is pending. Approve it on the phone used for payment.',
+    'Confirmez avec votre code PIN secret sur votre téléphone pour finaliser l’opération.': 'Enter your PIN on your phone to complete the payment.',
+    'Vérification du paiement...': 'Checking payment...',
+    'En attente de votre code PIN...': 'Waiting for your PIN...',
+    'J’ai validé mon code PIN, vérifier': 'I approved it with my PIN — check payment',
+    'Annuler ou changer de numéro': 'Cancel or change phone number',
+    'Paiement confirmé !': 'Payment confirmed!',
+    'Votre code d’accès personnel est activé sur cet appareil.': 'Your personal access code is activated on this device.',
+    'Accéder aux vidéos': 'Go to videos',
+    'Le code reçu est expiré ou sa date de validité est invalide.': 'The code received has expired or has an invalid expiry date.',
+    'Le paiement est confirmé, mais le code n’a pas pu être activé sur cet appareil.': 'Payment is confirmed, but the code could not be activated on this device.',
+    'Temps d’accès écoulé !': 'Your access has expired!',
+    "Temps d'accès écoulé !": 'Your access has expired!',
+    'Votre abonnement mensuel de 30 jours est arrivé à expiration. Renouvelez votre pass pour continuer à visionner.': 'Your 30-day subscription has expired. Renew your pass to keep watching.',
+    'Renouveler mon abonnement': 'Renew subscription',
+    'Quitter vers l’accueil': 'Back to home',
+    "Quitter vers l'accueil": 'Back to home',
+    'ZONE VIDÉO PRIVÉE': 'PRIVATE VIDEO AREA',
+    'Abonnement 50 $ / mois :': 'Subscription: $50 / month',
+    'FLUX SÉCURISÉ & CHIFFRÉ': 'SECURE & ENCRYPTED STREAM',
+    'Vidéos Exclusives': 'Exclusive videos',
+    'Grille interactive en format portrait (9:16). Les serveurs d’encodage sont en cours de mise à jour.': 'Interactive portrait video grid (9:16). Video encoding servers are currently being updated.',
+    "Grille interactive en format portrait (9:16). Les serveurs d'encodage sont en cours de mise à jour.": 'Interactive portrait video grid (9:16). Video encoding servers are currently being updated.',
+    'Contenu Privé #02': 'Private content #02',
+    'Archive Spéciale #06': 'Special archive #06',
+    'Séance Complète #09': 'Full session #09',
+    EXCLUSIF: 'EXCLUSIVE',
+    ULTIME: 'ULTIMATE',
+    'Vidéo indisponible': 'Video unavailable',
+    'En maintenance': 'Under maintenance',
+    'Abonnement VIP Actif :': 'Active VIP subscription:',
+    'Accès illimité aux vidéos': 'Unlimited video access',
+    'pendant toute la durée de validité de votre pass.': 'for the full duration of your pass.',
+    'Zone de Papy • Espace Vidéo VIP': 'Zone de Papy • VIP video area',
+    'Vidéos privées et confidentielles • Droits réservés aux membres VIP': 'Private, confidential videos • For VIP members only',
+    'Retourner à la boutique': 'Back to shop',
+    'Verrouiller la session': 'Lock session',
     'Adresse de livraison': 'Delivery address',
     'Nom complet': 'Full name',
     Adresse: 'Address',
@@ -381,18 +477,28 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [language, setLanguageState] = useState<Language>('fr');
+    const [language, setLanguageState] = useState<Language>('en');
+    const [languageReady, setLanguageReady] = useState(false);
+    const [showLanguagePrompt, setShowLanguagePrompt] = useState(false);
 
     useEffect(() => {
         let mounted = true;
         AsyncStorage.getItem(LANGUAGE_STORAGE_KEY)
             .then((savedLanguage) => {
-                if (mounted && (savedLanguage === 'en' || savedLanguage === 'fr')) {
+                if (!mounted) return;
+                if (savedLanguage === 'en' || savedLanguage === 'fr') {
                     setLanguageState(savedLanguage);
+                } else {
+                    setShowLanguagePrompt(true);
                 }
+                setLanguageReady(true);
             })
             .catch((error: unknown) => {
                 console.error('Unable to load saved language preference.', error);
+                if (mounted) {
+                    setShowLanguagePrompt(true);
+                    setLanguageReady(true);
+                }
             });
         return () => {
             mounted = false;
@@ -401,14 +507,100 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const setLanguage = (nextLanguage: Language) => {
         setLanguageState(nextLanguage);
+        setShowLanguagePrompt(false);
         AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage).catch((error: unknown) => {
             console.error('Unable to save language preference.', error);
         });
     };
 
     const value = useMemo(() => ({ language, setLanguage }), [language]);
-    return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+    return (
+        <LanguageContext.Provider value={value}>
+            {children}
+            <Modal
+                visible={!languageReady || showLanguagePrompt}
+                transparent
+                animationType="fade"
+                onRequestClose={() => undefined}
+            >
+                <View style={languagePromptStyles.overlay}>
+                    <View style={languagePromptStyles.card}>
+                        {!languageReady ? (
+                            <ActivityIndicator size="large" color="#a78bfa" />
+                        ) : (
+                            <>
+                                <NativeText style={languagePromptStyles.title}>Choose your language</NativeText>
+                                <NativeText style={languagePromptStyles.subtitle}>Choisissez votre langue</NativeText>
+                                <TouchableOpacity
+                                    accessibilityRole="button"
+                                    style={languagePromptStyles.languageButton}
+                                    onPress={() => setLanguage('en')}
+                                >
+                                    <NativeText style={languagePromptStyles.languageButtonText}>English</NativeText>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    accessibilityRole="button"
+                                    style={[languagePromptStyles.languageButton, languagePromptStyles.secondaryButton]}
+                                    onPress={() => setLanguage('fr')}
+                                >
+                                    <NativeText style={languagePromptStyles.languageButtonText}>Français</NativeText>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Modal>
+        </LanguageContext.Provider>
+    );
 };
+
+const languagePromptStyles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(2, 6, 23, 0.88)',
+        padding: 24,
+    },
+    card: {
+        width: '100%',
+        maxWidth: 380,
+        alignItems: 'center',
+        backgroundColor: '#111827',
+        borderColor: 'rgba(167, 139, 250, 0.45)',
+        borderWidth: 1,
+        borderRadius: 20,
+        padding: 28,
+    },
+    title: {
+        color: '#ffffff',
+        fontSize: 22,
+        fontWeight: '700',
+        textAlign: 'center',
+    },
+    subtitle: {
+        color: '#cbd5e1',
+        fontSize: 16,
+        marginTop: 6,
+        marginBottom: 22,
+    },
+    languageButton: {
+        width: '100%',
+        alignItems: 'center',
+        backgroundColor: '#6366f1',
+        borderRadius: 12,
+        paddingVertical: 14,
+        marginTop: 10,
+    },
+    secondaryButton: {
+        backgroundColor: '#334155',
+    },
+    languageButtonText: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+});
 
 export const useLanguage = (): LanguageContextValue => {
     const context = useContext(LanguageContext);

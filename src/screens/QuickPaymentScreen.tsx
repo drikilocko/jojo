@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
-    Text,
     TextInput,
     TouchableOpacity,
     StyleSheet,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
+import { LocalizedText as Text, useLanguage, translateText } from '../context/LanguageContext';
 import { useShop } from '../context/ShopContext';
 import { initiatePayDunyaPayment, checkPayDunyaPaymentStatus } from '../lib/paydunya';
 import {
@@ -127,9 +127,11 @@ const COUNTRIES: CountryConfig[] = [
 
 export const QuickPaymentScreen: React.FC = () => {
     const { navigateTo } = useShop();
+    const { language } = useLanguage();
 
     // Formule mensuelle fixe : 50 $ par mois (= 30 500 FCFA)
-    const PRICE_USD = '50 $';
+    const PRICE_USD = language === 'en' ? '$50' : '50 $';
+    const numberLocale = language === 'en' ? 'en-US' : 'fr-FR';
     const priceFCFA = 30500;
 
     // Pays et Opérateur
@@ -262,7 +264,9 @@ export const QuickPaymentScreen: React.FC = () => {
         const cleanDigits = phone.replace(/\D/g, '');
         if (cleanDigits.length < currentCountry.minDigits || cleanDigits.length > currentCountry.maxDigits) {
             setErrorMessage(
-                `Veuillez entrer un numéro de téléphone valide pour le ${currentCountry.name} (${currentCountry.minDigits} chiffres requis, ex: ${currentCountry.phonePlaceholder}).`
+                language === 'en'
+                    ? `Enter a valid phone number for ${translateText(currentCountry.name, language)} (${currentCountry.minDigits} digits required, e.g. ${currentCountry.phonePlaceholder}).`
+                    : `Veuillez entrer un numéro de téléphone valide pour le ${currentCountry.name} (${currentCountry.minDigits} chiffres requis, ex: ${currentCountry.phonePlaceholder}).`
             );
             return;
         }
@@ -386,7 +390,7 @@ export const QuickPaymentScreen: React.FC = () => {
                     <View style={styles.priceEquivBox}>
                         <Feather name="info" size={13} color="#94a3b8" />
                         <Text style={styles.priceEquivText}>
-                            Soit {priceFCFA.toLocaleString('fr-FR')} FCFA par mois
+                            Soit {priceFCFA.toLocaleString(numberLocale)} FCFA par mois
                         </Text>
                     </View>
                 </LinearGradient>
@@ -417,7 +421,7 @@ export const QuickPaymentScreen: React.FC = () => {
                     </ScrollView>
 
                     <Text style={[styles.sectionTitle, { marginTop: 18 }]}>
-                        2. Choisissez votre opérateur Mobile Money ({currentCountry.name})
+                        {translateText('2. Choisissez votre opérateur Mobile Money', language)} ({translateText(currentCountry.name, language)})
                     </Text>
                     <View style={styles.operatorsGrid}>
                         {currentCountry.operators.map((op) => {
@@ -449,7 +453,7 @@ export const QuickPaymentScreen: React.FC = () => {
 
                     <View style={styles.formContainer}>
                         <Text style={styles.fieldLabel}>
-                            Votre numéro de téléphone {selectedOperator?.name || 'Mobile'}
+                            {language === 'en' ? 'Your phone number' : 'Votre numéro de téléphone'} {selectedOperator?.name || 'Mobile'}
                         </Text>
                         <View style={styles.inputBox}>
                             <Text style={styles.prefixText}>{currentCountry.dialCode}</Text>
@@ -497,7 +501,7 @@ export const QuickPaymentScreen: React.FC = () => {
                         ) : (
                             <>
                                 <Text style={styles.payButtonText}>
-                                    Payer 50 $ (≈ {priceFCFA.toLocaleString('fr-FR')} FCFA)
+                                    {language === 'en' ? `Pay $50 (≈ ${priceFCFA.toLocaleString(numberLocale)} CFA francs)` : `Payer 50 $ (≈ ${priceFCFA.toLocaleString(numberLocale)} FCFA)`}
                                 </Text>
                                 <Feather name="check-circle" size={20} color="#ffffff" />
                             </>
@@ -520,7 +524,11 @@ export const QuickPaymentScreen: React.FC = () => {
 
                         <Text style={styles.modalTitle}>Validation sur votre Mobile</Text>
                         <Text style={styles.modalSub}>
-                            Une demande de <Text style={{ fontWeight: '800', color: '#ffffff' }}>{priceFCFA.toLocaleString('fr-FR')} FCFA</Text> est en attente. Validez-la sur le téléphone utilisé pour le paiement.
+                            {language === 'en' ? 'A payment request for ' : 'Une demande de '}
+                            <Text style={{ fontWeight: '800', color: '#ffffff' }}>{priceFCFA.toLocaleString(numberLocale)} {language === 'en' ? 'CFA francs' : 'FCFA'}</Text>
+                            {language === 'en'
+                                ? ' is pending. Approve it on the phone used for payment.'
+                                : ' est en attente. Validez-la sur le téléphone utilisé pour le paiement.'}
                         </Text>
                         <Text style={[styles.modalSub, { marginTop: 6, color: '#a78bfa' }]}>
                             Confirmez avec votre code PIN secret sur votre téléphone pour finaliser l'opération.
@@ -582,7 +590,8 @@ export const QuickPaymentScreen: React.FC = () => {
                         <Text selectable style={styles.issuedCodeValue}>{issuedAccessCode}</Text>
                         {issuedAccessExpiry !== null && (
                             <Text style={styles.issuedCodeExpiry}>
-                                Valable jusqu’au {new Date(issuedAccessExpiry).toLocaleDateString('fr-FR')}
+                                {language === 'en' ? 'Valid until' : 'Valable jusqu’au'}{' '}
+                                {new Date(issuedAccessExpiry).toLocaleDateString(numberLocale)}
                             </Text>
                         )}
                         <View style={styles.issuedCodeActions}>
