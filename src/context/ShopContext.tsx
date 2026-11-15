@@ -6,7 +6,7 @@ import { getErrorMessage, isExpiredJwtError, supabase } from '../lib/supabase';
 import { translateText, useLanguage } from './LanguageContext';
 import { restorePaidAccess } from '../lib/access';
 
-type ScreenName = 'shop' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'wishlist' | 'admin' | 'account' | 'explore' | 'gate' | 'quick-payment' | 'video';
+type ScreenName = 'shop' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'wishlist' | 'admin' | 'account' | 'explore' | 'gate' | 'quick-payment' | 'video' | 'free-preview';
 
 interface ShopContextType {
     products: Product[];
@@ -159,7 +159,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [cart, setCart] = useState<CartItem[]>([]);
     const [wishlist, setWishlist] = useState<string[]>([]);
     const [isSiteUnlocked, setIsSiteUnlocked] = useState(false);
-    const [activeScreen, setActiveScreen] = useState<ScreenName>('gate');
+    const [activeScreen, setActiveScreen] = useState<ScreenName>(() => (
+        typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/admin'
+            ? 'admin'
+            : 'gate'
+    ));
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(PRODUCTS[0]);
     const [currency, setCurrency] = useState<Currency>(CURRENCIES[0]);
     const currencyChangedDuringLoad = useRef(false);
@@ -168,6 +172,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [activeOrder, setActiveOrder] = useState<Order | null>(null);
 
     useEffect(() => {
+        if (typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/admin') {
+            return;
+        }
+
         restorePaidAccess()
             .then((expiry) => {
                 if (expiry !== null) {
@@ -183,6 +191,18 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsSiteUnlocked(false);
                 setActiveScreen('gate');
             });
+    }, []);
+
+    useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handlePopState = () => {
+        setActiveScreen(
+            window.location.pathname.replace(/\/+$/, '') === '/admin' ? 'admin' : 'gate'
+        );
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
     const lockSite = async () => {
@@ -325,6 +345,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const navigateTo = (screen: ScreenName) => {
         setActiveScreen(screen);
         if (typeof window !== 'undefined') {
+            const nextPath = screen === 'admin' ? '/admin' : '/';
+            if (window.location.pathname !== nextPath) {
+                window.history.pushState(null, '', nextPath);
+            }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };

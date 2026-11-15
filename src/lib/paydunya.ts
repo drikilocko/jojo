@@ -1,7 +1,8 @@
 // Les appels PayDunya utilisent fetch() directement pour eviter FunctionsFetchError sur le web
+import { supabasePublishableKey, supabaseUrl } from './supabase';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
+const SUPABASE_URL = supabaseUrl;
+const SUPABASE_KEY = supabasePublishableKey;
 
 export interface PayDunyaInvoiceResult {
     success: boolean;

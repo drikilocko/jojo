@@ -3,14 +3,23 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+function requireSupabaseConfiguration(url: string | undefined, publishableKey: string | undefined) {
+    if (!url || !publishableKey) {
+        throw new Error('Supabase is not configured. Set the EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY environment variables.');
+    }
 
-if (!supabaseUrl || !supabasePublishableKey) {
-    throw new Error('Supabase is not configured. Set the EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY environment variables.');
+    return { url, publishableKey };
 }
 
-export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
+const configuration = requireSupabaseConfiguration(
+    process.env.EXPO_PUBLIC_SUPABASE_URL,
+    process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+);
+
+export const supabaseUrl = configuration.url;
+export const supabasePublishableKey = configuration.publishableKey;
+
+export const supabase = createClient(configuration.url, configuration.publishableKey, {
     auth: {
         storage: AsyncStorage,
         autoRefreshToken: true,

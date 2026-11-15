@@ -28,6 +28,15 @@ After applying the schema, redeploy `paydunya-checkout`. Supabase supplies `SUPA
 
 In the Supabase Dashboard, open **Edge Functions → Secrets** and set `PAYDUNYA_MASTER_KEY`, `PAYDUNYA_TOKEN`, and `PAYDUNYA_PRIVATE_KEY` using the credentials with those exact names from the same PayDunya application and mode. A PayDunya Public Key is not a substitute for the Master Key required by the Checkout Invoice API. These credentials must not use an `EXPO_PUBLIC_` prefix or be included in the app bundle. Remove any PayDunya credentials from `.env.local` after moving them to Supabase. Since the old implementation exposed payment credentials in client code, rotate those credentials before adding them as Edge Function secrets.
 
+## VIP video library and admin
+
+1. Create the Supabase Auth user `jojo@gmail.com` in **Authentication → Users** and set its password there. Supabase hashes Auth passwords; do not put the password or its hash in the app.
+2. Run `video-library.sql` in the same project's SQL Editor after `schema.sql`. It grants that account the admin role, creates a private `vip-videos` Storage bucket, and installs the row/storage policies.
+3. Deploy the public/member video feed with `supabase functions deploy video-library --no-verify-jwt`. The function only returns public videos to preview visitors. For member videos it validates the saved access code and installation ID before creating short-lived signed URLs.
+4. Open `/admin` and sign in with `jojo@gmail.com`. Uploads are limited to 100 MiB and accepted formats are MP4, WebM, and QuickTime. The administrator can set each video to public or members-only.
+
+The home screen's “Try for free” button lists only public videos. Admin password changes are managed through Supabase Auth, not source code or SQL.
+
 The order table's `payment_method` constraint must allow `tmoney` and `flooz`; this is included in `schema.sql`. For an existing database, update the constraint in the SQL Editor:
 
 ```sql

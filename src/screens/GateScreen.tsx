@@ -257,6 +257,17 @@ export const GateScreen: React.FC = () => {
                                     </View>
                                 )}
 
+                                <TouchableOpacity
+                                    style={styles.freePreviewButton}
+                                    onPress={() => navigateTo('free-preview')}
+                                    accessibilityRole="button"
+                                >
+                                    <Feather name="play-circle" size={16} color="#c4b5fd" />
+                                    <Text style={styles.freePreviewText}>
+                                        {language === 'en' ? 'Try for free · Public videos' : 'Essayer gratuitement · vidéos publiques'}
+                                    </Text>
+                                </TouchableOpacity>
+
                                 {/* Badges de paiement sécurisé */}
                                 <View style={styles.badgesRow}>
                                     <View style={styles.badgeItem}>
@@ -444,6 +455,24 @@ const styles = StyleSheet.create({
     },
     redeemButtonText: {
         color: '#ffffff',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    freePreviewButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        width: '100%',
+        borderWidth: 1,
+        borderColor: 'rgba(196, 181, 253, 0.45)',
+        borderRadius: 10,
+        paddingVertical: 11,
+        marginTop: 10,
+        backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    },
+    freePreviewText: {
+        color: '#ddd6fe',
         fontSize: 13,
         fontWeight: '700',
     },

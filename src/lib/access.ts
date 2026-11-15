@@ -115,7 +115,7 @@ export async function getSavedAccessCode(): Promise<SavedAccessCode | null> {
     return null;
 }
 
-async function getInstallationId(): Promise<string> {
+export async function getInstallationId(): Promise<string> {
     const savedId = await AsyncStorage.getItem(INSTALLATION_ID_KEY);
     if (savedId && savedId.length >= 20 && savedId.length <= 100) return savedId;
 

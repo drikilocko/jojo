@@ -22,7 +22,8 @@ import {
 import { ShopProvider, useShop } from './src/context/ShopContext';
 import { GateScreen } from './src/screens/GateScreen';
 import { QuickPaymentScreen } from './src/screens/QuickPaymentScreen';
-import { VideoScreen } from './src/screens/VideoScreen';
+import { VideoAdminScreen } from './src/screens/VideoAdminScreen';
+import { VideoLibraryScreen } from './src/screens/VideoLibraryScreen';
 import { LanguageProvider } from './src/context/LanguageContext';
 
 const MainNavigator: React.FC = () => {
@@ -33,7 +34,11 @@ const MainNavigator: React.FC = () => {
             case 'quick-payment':
                 return <QuickPaymentScreen />;
             case 'video':
-                return <VideoScreen />;
+                return <VideoLibraryScreen />;
+            case 'free-preview':
+                return <VideoLibraryScreen previewOnly />;
+            case 'admin':
+                return <VideoAdminScreen />;
             case 'gate':
             default:
                 return <GateScreen />;
