@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    ImageBackground,
     Platform,
     ScrollView,
     StyleSheet,
@@ -47,7 +48,7 @@ export const VideoLibraryScreen: React.FC<VideoLibraryScreenProps> = ({ previewO
                     <Text style={styles.title}>Vidéos {previewOnly ? 'publiques' : 'VIP'}</Text>
                     <Text style={styles.subtitle}>
                         {previewOnly
-                            ? 'Découvre les vidéos que l’administrateur a rendues publiques.'
+                            ? 'Les vidéos publiques se lisent ; les aperçus floutés sont réservés aux membres.'
                             : 'Les vidéos privées sont réservées aux membres avec un accès actif.'}
                     </Text>
                 </View>
@@ -82,14 +83,32 @@ export const VideoLibraryScreen: React.FC<VideoLibraryScreenProps> = ({ previewO
             ) : videos.length === 0 ? (
                 <View style={styles.status}>
                     <Text style={styles.statusText}>
-                        {previewOnly ? 'Aucune vidéo publique pour le moment.' : 'Aucune vidéo disponible.'}
+                        {previewOnly ? 'Aucune vidéo disponible pour le moment.' : 'Aucune vidéo disponible.'}
                     </Text>
                 </View>
             ) : (
                 <View style={styles.grid}>
                     {videos.map((video) => (
                         <View key={video.id} style={styles.card}>
-                            {Platform.OS === 'web'
+                            {video.locked ? (
+                                <View style={styles.lockedCover}>
+                                    {video.coverUrl ? (
+                                        <ImageBackground
+                                            source={{ uri: video.coverUrl }}
+                                            style={styles.lockedCoverImage}
+                                            imageStyle={styles.coverImage}
+                                            blurRadius={12}
+                                        />
+                                    ) : (
+                                        <View style={styles.lockedCoverFallback} />
+                                    )}
+                                    <View style={styles.lockOverlay}>
+                                        <Feather name="lock" size={24} color="#ffffff" />
+                                        <Text style={styles.lockedLabel}>APERÇU FLOUTÉ</Text>
+                                        <Text style={styles.lockedText}>Réservé aux membres</Text>
+                                    </View>
+                                </View>
+                            ) : Platform.OS === 'web' && video.url
                                 ? React.createElement('video', {
                                     src: video.url,
                                     controls: true,
@@ -105,8 +124,10 @@ export const VideoLibraryScreen: React.FC<VideoLibraryScreenProps> = ({ previewO
                                     },
                                 })
                                 : <Text style={styles.statusText}>La lecture vidéo est disponible sur le site web.</Text>}
-                            <Text style={styles.videoTitle}>{video.title}</Text>
-                            {!!video.description && <Text style={styles.description}>{video.description}</Text>}
+                            {!video.locked && <Text style={styles.videoTitle}>{video.title}</Text>}
+                            {!video.locked && !!video.description && (
+                                <Text style={styles.description}>{video.description}</Text>
+                            )}
                             {!previewOnly && (
                                 <Text style={styles.visibility}>
                                     {video.visibility === 'public' ? 'PUBLIC' : 'MEMBRES'}
@@ -218,6 +239,43 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         backgroundColor: '#111827',
         gap: 10,
+    },
+    lockedCover: {
+        position: 'relative',
+        aspectRatio: 9 / 16,
+        overflow: 'hidden',
+        borderRadius: 10,
+        backgroundColor: '#1e293b',
+    },
+    lockedCoverImage: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    coverImage: {
+        resizeMode: 'cover',
+    },
+    lockedCoverFallback: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: '#1e293b',
+    },
+    lockOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        padding: 16,
+        backgroundColor: 'rgba(2, 6, 23, 0.42)',
+    },
+    lockedLabel: {
+        color: '#ffffff',
+        fontSize: 11,
+        fontWeight: '800',
+        letterSpacing: 1.2,
+    },
+    lockedText: {
+        color: '#e2e8f0',
+        fontSize: 13,
+        fontWeight: '600',
+        textAlign: 'center',
     },
     videoTitle: {
         color: '#ffffff',

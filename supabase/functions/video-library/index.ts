@@ -19,6 +19,33 @@ const getSupabaseHeaders = (serviceRoleKey: string) => ({
     'Content-Type': 'application/json',
 });
 
+async function createSignedUrl(
+    supabaseUrl: string,
+    headers: ReturnType<typeof getSupabaseHeaders>,
+    objectPath: string,
+): Promise<string> {
+    const encodedPath = objectPath.split('/').map(encodeURIComponent).join('/');
+    const response = await fetch(
+        `${supabaseUrl}/storage/v1/object/sign/vip-videos/${encodedPath}`,
+        {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ expiresIn: 3600 }),
+        },
+    );
+    if (!response.ok) throw new Error('Unable to sign a video library object.');
+
+    const data: unknown = await response.json();
+    if (!isRecord(data) || typeof data.signedURL !== 'string') {
+        throw new Error('Invalid signed storage response.');
+    }
+
+    const signedPath = data.signedURL;
+    if (signedPath.startsWith('http')) return signedPath;
+    if (signedPath.startsWith('/storage/v1/')) return `${supabaseUrl}${signedPath}`;
+    return `${supabaseUrl}/storage/v1${signedPath.startsWith('/') ? signedPath : `/${signedPath}`}`;
+}
+
 Deno.serve(async (request) => {
     if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
     if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed.' }, 405);
@@ -70,10 +97,9 @@ Deno.serve(async (request) => {
     }
 
     const query = new URLSearchParams({
-        select: 'id,title,description,object_path,visibility,created_at',
+        select: 'id,title,description,object_path,cover_path,visibility,created_at',
         order: 'created_at.desc',
     });
-    if (payload.action === 'public') query.set('visibility', 'eq.public');
 
     const headers = getSupabaseHeaders(serviceRoleKey);
     const videosResponse = await fetch(`${supabaseUrl}/rest/v1/vip_videos?${query}`, { headers });
@@ -89,42 +115,42 @@ Deno.serve(async (request) => {
 
     const result = [];
     for (const video of videos) {
-        if (!isRecord(video) || typeof video.object_path !== 'string') {
+        if (
+            !isRecord(video)
+            || typeof video.id !== 'string'
+            || typeof video.title !== 'string'
+            || typeof video.description !== 'string'
+            || typeof video.object_path !== 'string'
+            || (video.cover_path !== null && typeof video.cover_path !== 'string')
+            || (video.visibility !== 'public' && video.visibility !== 'members')
+            || typeof video.created_at !== 'string'
+        ) {
             return jsonResponse({ error: 'Invalid video metadata.' }, 502);
         }
 
-        const objectPath = video.object_path.split('/').map(encodeURIComponent).join('/');
-        const signedResponse = await fetch(
-            `${supabaseUrl}/storage/v1/object/sign/vip-videos/${objectPath}`,
-            {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({ expiresIn: 3600 }),
-            },
-        );
-        if (!signedResponse.ok) {
-            console.error('Unable to create a signed video URL.');
+        const locked = payload.action === 'public' && video.visibility === 'members';
+        let coverUrl: string | null = null;
+        let url: string | null = null;
+        try {
+            if (locked && typeof video.cover_path === 'string') {
+                coverUrl = await createSignedUrl(supabaseUrl, headers, video.cover_path);
+            }
+            if (!locked) {
+                url = await createSignedUrl(supabaseUrl, headers, video.object_path);
+            }
+        } catch {
+            console.error('Unable to prepare a video library object.');
             return jsonResponse({ error: 'Unable to prepare a video for playback.' }, 503);
         }
 
-        const signedData: unknown = await signedResponse.json();
-        if (!isRecord(signedData) || typeof signedData.signedURL !== 'string') {
-            return jsonResponse({ error: 'Invalid signed video response.' }, 502);
-        }
-
-        const signedPath = signedData.signedURL;
-        const url = signedPath.startsWith('http')
-            ? signedPath
-            : signedPath.startsWith('/storage/v1/')
-                ? `${supabaseUrl}${signedPath}`
-                : `${supabaseUrl}/storage/v1${signedPath.startsWith('/') ? signedPath : `/${signedPath}`}`;
-
         result.push({
             id: video.id,
-            title: video.title,
-            description: video.description,
+            title: locked ? 'Contenu réservé aux membres' : video.title,
+            description: locked ? '' : video.description,
             visibility: video.visibility,
             createdAt: video.created_at,
+            locked,
+            coverUrl,
             url,
         });
     }

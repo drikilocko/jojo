@@ -3,10 +3,14 @@ create table if not exists public.vip_videos (
     title text not null check (length(btrim(title)) between 1 and 120),
     description text not null default '',
     object_path text not null unique,
+    cover_path text,
     visibility text not null default 'members'
         check (visibility in ('public', 'members')),
     created_at timestamptz not null default now()
 );
+
+alter table public.vip_videos
+    add column if not exists cover_path text;
 
 alter table public.vip_videos enable row level security;
 
@@ -37,7 +41,7 @@ values (
     'vip-videos',
     false,
     104857600,
-    array['video/mp4', 'video/webm', 'video/quicktime']
+    array['video/mp4', 'video/webm', 'video/quicktime', 'image/jpeg']
 )
 on conflict (id) do update
 set public = false,

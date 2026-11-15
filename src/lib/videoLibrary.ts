@@ -7,7 +7,9 @@ export interface LibraryVideo {
     description: string;
     visibility: 'public' | 'members';
     createdAt: string;
-    url: string;
+    locked: boolean;
+    coverUrl: string | null;
+    url: string | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -64,7 +66,11 @@ export async function loadVideoLibrary(includeMembers: boolean): Promise<Library
             || typeof video.description !== 'string'
             || (video.visibility !== 'public' && video.visibility !== 'members')
             || typeof video.createdAt !== 'string'
-            || typeof video.url !== 'string'
+            || typeof video.locked !== 'boolean'
+            || (video.coverUrl !== null && typeof video.coverUrl !== 'string')
+            || (video.url !== null && typeof video.url !== 'string')
+            || (video.locked && (video.visibility !== 'members' || video.url !== null))
+            || (!video.locked && typeof video.url !== 'string')
         ) {
             throw new Error('Une vidéo contient des informations invalides.');
         }
@@ -74,6 +80,8 @@ export async function loadVideoLibrary(includeMembers: boolean): Promise<Library
             description: video.description,
             visibility: video.visibility,
             createdAt: video.createdAt,
+            locked: video.locked,
+            coverUrl: video.coverUrl,
             url: video.url,
         };
     });

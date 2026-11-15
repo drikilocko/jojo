@@ -4,7 +4,12 @@ import { Product, CartItem, FilterState, CurrencyCode, Currency, Order, User } f
 import { PRODUCTS, CATEGORIES, CURRENCIES } from '../data/mockData';
 import { getErrorMessage, isExpiredJwtError, supabase } from '../lib/supabase';
 import { translateText, useLanguage } from './LanguageContext';
-import { restorePaidAccess } from '../lib/access';
+import {
+    ACCESS_SESSION_IDLE_MS,
+    clearPaidAccessSession,
+    recordPaidAccessActivity,
+    restorePaidAccess,
+} from '../lib/access';
 
 type ScreenName = 'shop' | 'product-detail' | 'cart' | 'checkout' | 'order-success' | 'wishlist' | 'admin' | 'account' | 'explore' | 'gate' | 'quick-payment' | 'video' | 'free-preview';
 
@@ -208,7 +213,93 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const lockSite = async () => {
         setIsSiteUnlocked(false);
         setActiveScreen('gate');
+        try {
+            await clearPaidAccessSession();
+        } catch (error: unknown) {
+            console.error('Unable to clear the active VIP session.', error);
+        }
     };
+
+    useEffect(() => {
+        if (!isSiteUnlocked || typeof document === 'undefined') return;
+
+        let mounted = true;
+        let expiring = false;
+        let lastActivity = Date.now();
+        let expiryTimer: ReturnType<typeof setTimeout>;
+
+        const expireSession = () => {
+            if (expiring) return;
+            expiring = true;
+            clearTimeout(expiryTimer);
+            clearPaidAccessSession()
+                .catch((error: unknown) => {
+                    console.error('Unable to clear the expired VIP session.', error);
+                })
+                .finally(() => {
+                    if (!mounted) return;
+                    setIsSiteUnlocked(false);
+                    setActiveScreen('gate');
+                });
+        };
+
+        const scheduleExpiry = () => {
+            clearTimeout(expiryTimer);
+            const remaining = ACCESS_SESSION_IDLE_MS - (Date.now() - lastActivity);
+            expiryTimer = setTimeout(expireSession, Math.max(remaining, 0));
+        };
+
+        const handleActivity = () => {
+            if (Date.now() - lastActivity >= ACCESS_SESSION_IDLE_MS) {
+                expireSession();
+                return;
+            }
+
+            lastActivity = Date.now();
+            recordPaidAccessActivity().catch((error: unknown) => {
+                console.error('Unable to persist VIP session activity.', error);
+            });
+            scheduleExpiry();
+        };
+
+        const handleVideoActivity = (event: Event) => {
+            const video = event.target;
+            if (video instanceof HTMLVideoElement && !video.paused && !video.ended) {
+                handleActivity();
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (!document.hidden) handleActivity();
+        };
+
+        const activityEvents: Array<keyof DocumentEventMap> = [
+            'pointerdown',
+            'keydown',
+            'touchstart',
+            'scroll',
+            'wheel',
+        ];
+        activityEvents.forEach((eventName) => {
+            document.addEventListener(eventName, handleActivity, { passive: true });
+        });
+        document.addEventListener('timeupdate', handleVideoActivity, true);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        recordPaidAccessActivity().catch((error: unknown) => {
+            console.error('Unable to persist VIP session activity.', error);
+        });
+        scheduleExpiry();
+
+        return () => {
+            mounted = false;
+            clearTimeout(expiryTimer);
+            activityEvents.forEach((eventName) => {
+                document.removeEventListener(eventName, handleActivity);
+            });
+            document.removeEventListener('timeupdate', handleVideoActivity, true);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isSiteUnlocked]);
 
     useEffect(() => {
         let mounted = true;

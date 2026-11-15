@@ -225,6 +225,14 @@ export const GateScreen: React.FC = () => {
                                     </View>
                                 )}
 
+                                {savedAccessCode && !hasPaidAccess && (
+                                    <Text style={styles.noCodePrompt}>
+                                        {language === 'en'
+                                            ? 'Your session expired after 10 minutes of inactivity. Enter your code again to continue.'
+                                            : 'Votre session a expiré après 10 minutes sans activité. Saisissez à nouveau votre code pour continuer.'}
+                                    </Text>
+                                )}
+
                                 <View style={styles.codeEntry}>
                                     <Text style={styles.codeEntryLabel}>Vous avez un code d’accès ?</Text>
                                     <TextInput

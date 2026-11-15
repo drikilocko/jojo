@@ -3,10 +3,15 @@ import { supabase } from './supabase';
 
 export const ACCESS_EXPIRY_STORAGE_KEY = '@zone-de-papy/paydunya-access-expiry-v1';
 export const ACCESS_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+export const ACCESS_SESSION_IDLE_MS = 10 * 60 * 1000;
 const PENDING_INVOICE_TOKEN_KEY = '@zone-de-papy/pending-invoice-token-v1';
 const PENDING_ORDER_ID_KEY = '@zone-de-papy/pending-order-id-v1';
 const INSTALLATION_ID_KEY = '@zone-de-papy/access-code-installation-id-v1';
 const SAVED_ACCESS_CODE_KEY = '@zone-de-papy/last-issued-access-code-v1';
+const ACCESS_LAST_ACTIVITY_KEY = '@zone-de-papy/access-last-activity-v1';
+const ACTIVITY_PERSIST_INTERVAL_MS = 30 * 1000;
+
+let lastActivityPersistedAt = 0;
 
 export interface SavedAccessCode {
     code: string;
@@ -37,26 +42,42 @@ export async function clearPendingPayDunyaPayment(): Promise<void> {
 }
 
 export async function getPaidAccessExpiry(): Promise<number | null> {
-    const storedExpiry = await AsyncStorage.getItem(ACCESS_EXPIRY_STORAGE_KEY);
+    const storedValues = await AsyncStorage.multiGet([
+        ACCESS_EXPIRY_STORAGE_KEY,
+        ACCESS_LAST_ACTIVITY_KEY,
+    ]);
+    const storedExpiry = storedValues[0][1];
+    const storedActivity = storedValues[1][1];
     if (!storedExpiry) return null;
 
     const expiry = Number(storedExpiry);
-    if (!Number.isSafeInteger(expiry)) {
-        await AsyncStorage.removeItem(ACCESS_EXPIRY_STORAGE_KEY);
+    const now = Date.now();
+    if (!Number.isSafeInteger(expiry) || expiry <= now) {
+        await AsyncStorage.multiRemove([ACCESS_EXPIRY_STORAGE_KEY, ACCESS_LAST_ACTIVITY_KEY]);
         return null;
     }
 
-    return expiry > Date.now() ? expiry : null;
+    const lastActivity = storedActivity === null ? null : Number(storedActivity);
+    if (
+        lastActivity !== null
+        && Number.isSafeInteger(lastActivity)
+        && lastActivity <= now
+        && now - lastActivity >= ACCESS_SESSION_IDLE_MS
+    ) {
+        await AsyncStorage.multiRemove([ACCESS_EXPIRY_STORAGE_KEY, ACCESS_LAST_ACTIVITY_KEY]);
+        return null;
+    }
+
+    if (lastActivity === null || !Number.isSafeInteger(lastActivity) || lastActivity > now) {
+        await AsyncStorage.setItem(ACCESS_LAST_ACTIVITY_KEY, String(now));
+        lastActivityPersistedAt = now;
+    }
+
+    return expiry;
 }
 
 export async function restorePaidAccess(): Promise<number | null> {
-    const savedExpiry = await getPaidAccessExpiry();
-    if (savedExpiry !== null) return savedExpiry;
-
-    const savedAccessCode = await getSavedAccessCode();
-    if (!savedAccessCode) return null;
-
-    return redeemAccessCode(savedAccessCode.code);
+    return getPaidAccessExpiry();
 }
 
 export async function grantPaidAccess(expiry = Date.now() + ACCESS_DURATION_MS): Promise<number> {
@@ -65,6 +86,9 @@ export async function grantPaidAccess(expiry = Date.now() + ACCESS_DURATION_MS):
     }
 
     await AsyncStorage.setItem(ACCESS_EXPIRY_STORAGE_KEY, String(expiry));
+    const now = Date.now();
+    await AsyncStorage.setItem(ACCESS_LAST_ACTIVITY_KEY, String(now));
+    lastActivityPersistedAt = now;
     return expiry;
 }
 
@@ -83,12 +107,32 @@ export async function redeemAccessCode(code: string): Promise<number | null> {
 
     await AsyncStorage.multiSet([
         [ACCESS_EXPIRY_STORAGE_KEY, String(expiry)],
+        [ACCESS_LAST_ACTIVITY_KEY, String(Date.now())],
         [
             SAVED_ACCESS_CODE_KEY,
             JSON.stringify({ code: code.trim(), expiresAt: expiry } satisfies SavedAccessCode),
         ],
     ]);
+    lastActivityPersistedAt = Date.now();
     return expiry;
+}
+
+export async function recordPaidAccessActivity(): Promise<void> {
+    const now = Date.now();
+    if (now - lastActivityPersistedAt < ACTIVITY_PERSIST_INTERVAL_MS) return;
+
+    lastActivityPersistedAt = now;
+    try {
+        await AsyncStorage.setItem(ACCESS_LAST_ACTIVITY_KEY, String(now));
+    } catch (error: unknown) {
+        lastActivityPersistedAt = 0;
+        throw error;
+    }
+}
+
+export async function clearPaidAccessSession(): Promise<void> {
+    await AsyncStorage.multiRemove([ACCESS_EXPIRY_STORAGE_KEY, ACCESS_LAST_ACTIVITY_KEY]);
+    lastActivityPersistedAt = 0;
 }
 
 export async function getSavedAccessCode(): Promise<SavedAccessCode | null> {
