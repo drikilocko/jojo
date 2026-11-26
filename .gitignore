@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+.vercel
+# réglages locaux des outils (pas pour le dépôt)
+.claude
+.qodo
+# photos sources brutes et captures (les versions optimisées sont dans public/img)
+/*.jpg
+/*.png
