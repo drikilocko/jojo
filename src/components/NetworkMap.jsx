@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { MAP } from '../data/networkMap.js'
+import { useI18n } from '../i18n/I18n.jsx'
 import '../network.css'
 
 /*
@@ -49,6 +50,7 @@ const arcs = MAP.cities.map((c, i) => {
 const travelCss = arcs.map((a) => a.keyframes).join('')
 
 export default function NetworkMap() {
+  const { t } = useI18n()
   const ref = useRef(null)
   const fx = useRef(null)
 
@@ -75,7 +77,7 @@ export default function NetworkMap() {
         <img className="nm-world" src="/img/world-map.svg" alt="" width={vbW} height={vbH}
           loading="lazy" decoding="async" />
         <svg className="nm-svg" viewBox={MAP.viewBox} role="img"
-          aria-label={`Réseau NTCL : siège à Lomé (Togo), connexions vers ${MAP.cities.map((c) => c.city).join(', ')}`}>
+          aria-label={t.network.aria}>
           <path className="nm-togo" d={MAP.togo} />
           {arcs.map((a) => (
             <g key={a.city} className="nm-link" style={{ '--i': a.i }}>
@@ -85,8 +87,8 @@ export default function NetworkMap() {
                 <circle className="nm-dot" r="3.2" />
                 <path className="nm-arrow" d="M0,0 L-9,-4.2 L-7,0 L-9,4.2 Z" transform={`rotate(${a.angle.toFixed(1)}) translate(-5 0)`} />
                 <text className="nm-label" x={a.left ? -9 : 9} y="-7" textAnchor={a.left ? 'end' : 'start'}>
-                  <tspan className="nm-city">{a.city}</tspan>
-                  <tspan className="nm-country" x={a.left ? -9 : 9} dy="12">{a.country}</tspan>
+                  <tspan className="nm-city">{t.network.cities[a.city === 'Dubaï' ? 'Dubai' : a.city].city}</tspan>
+                  <tspan className="nm-country" x={a.left ? -9 : 9} dy="12">{t.network.cities[a.city === 'Dubaï' ? 'Dubai' : a.city].country}</tspan>
                 </text>
               </g>
             </g>
@@ -94,8 +96,8 @@ export default function NetworkMap() {
           <g transform={`translate(${hx} ${hy})`}>
             <circle className="nm-hub-dot" r="4.4" />
             <text className="nm-label nm-hub-label" x="-11" y="16" textAnchor="end">
-              <tspan className="nm-city">Lomé</tspan>
-              <tspan className="nm-country" x="-11" dy="12">Togo · Siège</tspan>
+              <tspan className="nm-city">{t.network.hubCity}</tspan>
+              <tspan className="nm-country" x="-11" dy="12">{t.network.hubCountry}</tspan>
             </text>
           </g>
         </svg>
@@ -113,8 +115,11 @@ export default function NetworkMap() {
 
       {/* mobile : les villes en liste (les étiquettes de la carte seraient trop petites) */}
       <ul className="nm-legend">
-        <li className="nm-legend-hub"><b>Lomé</b> Togo · Siège</li>
-        {MAP.cities.map((c) => <li key={c.city}><b>{c.city}</b> {c.country}</li>)}
+        <li className="nm-legend-hub"><b>{t.network.hubCity}</b> {t.network.hubCountry}</li>
+        {MAP.cities.map((c) => {
+          const city = t.network.cities[c.city === 'Dubaï' ? 'Dubai' : c.city]
+          return <li key={c.city}><b>{city.city}</b> {city.country}</li>
+        })}
       </ul>
     </div>
   )

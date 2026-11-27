@@ -1,13 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import { I18nProvider } from './i18n/I18n.jsx'
 import './styles.css'
 import './flight.css'
 
 const root = document.getElementById('root')
 const app = (
   <React.StrictMode>
-    <App />
+    <I18nProvider><App /></I18nProvider>
   </React.StrictMode>
 )
 

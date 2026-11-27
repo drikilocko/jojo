@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { lenis } from '../lib/smoothScroll.js'
+import { LanguageSelect, useI18n } from '../i18n/I18n.jsx'
 import '../header.css'
 
 /*
@@ -9,18 +10,18 @@ import '../header.css'
   - Rendu identique serveur / client (caché au départ) : pas d'accès à window pendant le rendu.
   - Dans le callback de scroll : aucune lecture de layout, seulement des valeurs en cache.
 */
-const links = [
-  ['Services', 'services'], ['Solutions', 'solutions'],
-  ['À propos', 'apropos'], ['Contact', 'contact'],
-]
-
 const DELTA = 6 // px de mouvement minimum (scroll natif) avant de changer d'état : évite le scintillement
 
 export default function SiteHeader() {
+  const { t } = useI18n()
   const [shown, setShown] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const shownRef = useRef(false)
   const root = useRef(null)
+  const links = [
+    [t.nav.services, 'services'], [t.nav.solutions, 'solutions'],
+    [t.nav.about, 'apropos'], [t.nav.contact, 'contact'],
+  ]
 
   useEffect(() => {
     let limit = 0 // hauteur de .flight (en cache)
@@ -74,17 +75,18 @@ export default function SiteHeader() {
 
   return (
     <div className={`site-header${shown ? ' is-shown' : ''}`} ref={root}>
-      <nav className="sh-nav" aria-label="Navigation principale">
-        <a href="#accueil" className="sh-logo" aria-label="NTCL — accueil">
+      <nav className="sh-nav" aria-label={t.nav.mainNav}>
+        <a href="#accueil" className="sh-logo" aria-label={t.nav.home}>
           <span className="sh-logo-mark" aria-hidden="true" />
           NTCL
         </a>
         <ul className="sh-links">
           {links.map(([l, id]) => <li key={id}><a href={`#${id}`}>{l}</a></li>)}
         </ul>
-        <a href="#contact" className="sh-cta">Demander un devis</a>
+        <LanguageSelect />
+        <a href="#contact" className="sh-cta">{t.nav.cta}</a>
         <button
-          className="sh-burger" type="button" aria-label="Menu"
+          className="sh-burger" type="button" aria-label={t.nav.menu}
           aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}
         >
           <span /><span />
@@ -94,7 +96,7 @@ export default function SiteHeader() {
       {menuOpen && (
         <div className="sh-menu" onClick={() => setMenuOpen(false)}>
           {links.map(([l, id]) => <a key={id} href={`#${id}`}>{l}</a>)}
-          <a href="#contact" className="sh-menu-cta">Demander un devis</a>
+          <a href="#contact" className="sh-menu-cta">{t.nav.cta}</a>
         </div>
       )}
     </div>

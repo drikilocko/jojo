@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { lenis, scrollToY, startScroll, stopScroll } from '../lib/smoothScroll.js'
+import { LanguageSelect, useI18n } from '../i18n/I18n.jsx'
 
 /*
   Section 1 — Héro → Survol → À propos (la page défile ensuite normalement)
@@ -32,31 +33,18 @@ const BG_ZOOM = 0.22  // zoom ajouté quand l'avion apparaît
 const MOBILE = 820
 const P_INTRO = 0.45     // progression jouée automatiquement (jusqu'à l'apparition du texte)
 const INTRO_MS = 3400        // durée de l'aller automatique (grand écran) — courte : la page ne paraît pas bloquée
-const INTRO_MS_MOBILE = 3000 // un peu plus courte sur téléphone
+const INTRO_MS_MOBILE = 2400 // le défilement tactile est plus court que sur grand écran
 const BACK_RATIO = 0.8       // le retour est un peu plus rapide que l'aller
 
 // Largeur finale de l'avion posé (même formule que --about-plane en CSS)
 const finalPlaneWidth = (vw, vh) => (vw > MOBILE ? Math.min(vw * 0.34, vh * 0.56) : Math.min(vw * 0.8, vh * 0.4))
 const restOffset = (vh, mobile) => (mobile ? vh * 0.12 : vh * 0.03) // avion posé : décalage sous le centre
 
-const links = [
-  ['Services', 'services'], ['Solutions', 'solutions'],
-  ['À propos', 'apropos'], ['Contact', 'contact'],
-]
-
 // hébergés sur le site (aucune connexion externe dans le héro)
 const avatars = ['/img/avatars/men-32.webp', '/img/avatars/women-44.webp', '/img/avatars/men-75.webp']
 
-const specs = [
-  ["Années d'expérience", '15+'],
-  ['Pays desservis', '120'],
-  ['Expéditions par an', '20 000+'],
-  ["Livraisons à l'heure", '98 %'],
-]
-
-
-
 export default function Flight() {
+  const { t } = useI18n()
   const root = useRef(null)
   const sea = useRef(null)
   const vignette = useRef(null)
@@ -69,6 +57,10 @@ export default function Flight() {
   const hero = useRef(null)
   const about = useRef(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const links = [
+    [t.nav.services, 'services'], [t.nav.solutions, 'solutions'],
+    [t.nav.about, 'apropos'], [t.nav.contact, 'contact'],
+  ]
 
   useEffect(() => {
     const el = root.current
@@ -420,24 +412,21 @@ export default function Flight() {
 
         <div className="fl-strip">
           {/* À propos — allégé */}
-          <section ref={about} className="fl-about" aria-label="À propos de NTCL">
+          <section ref={about} className="fl-about" aria-label={t.intro.aria}>
             <div className="fla-left">
-              <p className="fla-kicker">À propos de<span className="fla-kicker-brand"> NTCL</span></p>
+              <p className="fla-kicker">{t.intro.kicker}<span className="fla-kicker-brand"> NTCL</span></p>
               <h2 className="fla-giant">NTCL</h2>
               <dl className="fla-specs">
-                {specs.map(([k, v]) => (
-                  <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+                {t.intro.specs.map(({ label, value }) => (
+                  <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
                 ))}
               </dl>
             </div>
             <div className="fla-right">
-              <h3 className="fla-title">Logistique &amp; transport sans frontières</h3>
-              <p className="fla-text">
-                Par mer, air et route, nous acheminons vos marchandises avec fiabilité,
-                rapidité et transparence.
-              </p>
+              <h3 className="fla-title">{t.intro.title}</h3>
+              <p className="fla-text">{t.intro.text}</p>
             </div>
-            <a href="#contact" className="fla-btn">Demander un devis</a>
+            <a href="#contact" className="fla-btn">{t.intro.cta}</a>
           </section>
 
         </div>
@@ -447,35 +436,34 @@ export default function Flight() {
           <div className="flh-main">
             <span className="flh-badge" data-out>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" /></svg>
-              Fret maritime, aérien &amp; routier
+              {t.hero.badge}
             </span>
-            <h1 className="flh-title" data-out>Pensé pour les océans.<br />Fiable dans les <strong>airs.</strong></h1>
+            <h1 className="flh-title" data-out>{t.hero.titleLine1}<br />{t.hero.titleLine2Start}<strong>{t.hero.titleLine2Strong}</strong></h1>
             <div className="flh-actions" data-out>
-              <a href="#contact" className="flh-btn">Demander un devis</a>
+              <a href="#contact" className="flh-btn">{t.hero.cta}</a>
               <div className="flh-proof">
                 <div className="flh-avatars">
                   {avatars.map((src) => <img key={src} src={src} alt="" width="30" height="30" decoding="async" fetchpriority="low" />)}
                 </div>
-                <span>20 000+ expéditions<br />livrées dans le monde</span>
+                <span>{t.hero.proofLine1}<br />{t.hero.proofLine2}</span>
               </div>
             </div>
           </div>
-          <p className="flh-text" data-out>
-            NTCL achemine vos marchandises par mer, air et route : suivi en temps réel,
-            dédouanement maîtrisé et livraisons fiables, à chaque étape du trajet.
-          </p>
+          <p className="flh-text" data-out>{t.hero.text}</p>
         </div>
 
         <nav className="fl-nav" ref={nav}>
-          <a href="#accueil" className="fl-logo" aria-label="NTCL — accueil">
+          <a href="#accueil" className="fl-logo" aria-label={t.nav.home}>
             <span className="fl-logo-mark" aria-hidden="true" />
             NTCL
           </a>
-          <ul className="fl-links">
+          <ul className="fl-links" aria-label={t.nav.mainNav}>
             {links.map(([l, id]) => <li key={id}><a href={`#${id}`}>{l}</a></li>)}
           </ul>
-          <a href="#contact" className="fl-navcta">Demander un devis</a>
-          <button className="burger" aria-label="Menu" onClick={() => setMenuOpen(!menuOpen)}>
+          <LanguageSelect />
+          <a href="#contact" className="fl-navcta">{t.nav.cta}</a>
+          <button className="burger" type="button" aria-label={t.nav.menu}
+            aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
             <span /><span />
           </button>
         </nav>
