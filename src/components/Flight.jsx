@@ -33,7 +33,7 @@ const BG_ZOOM = 0.22  // zoom ajouté quand l'avion apparaît
 const MOBILE = 820
 const P_INTRO = 0.45     // progression jouée automatiquement (jusqu'à l'apparition du texte)
 const INTRO_MS = 3400        // durée de l'aller automatique (grand écran) — courte : la page ne paraît pas bloquée
-const INTRO_MS_MOBILE = 2400 // le défilement tactile est plus court que sur grand écran
+const INTRO_MS_MOBILE = 1800 // accélère davantage l'animation sur téléphone
 const BACK_RATIO = 0.8       // le retour est un peu plus rapide que l'aller
 
 // Largeur finale de l'avion posé (même formule que --about-plane en CSS)
